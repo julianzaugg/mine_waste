@@ -41,6 +41,7 @@ library(vegan)
 library(reshape2)
 library(gplots)
 
+library(seqinr) # For writing fasta files
 
 
 common_theme <- theme(
@@ -97,8 +98,99 @@ create_project_result_dirs <- function(project_name){
   dir.create(file.path("./Result_tables",project_name, "contaminant_analysis"), showWarnings = FALSE,recursive = T)
 }
 
-###############################################################
 
+
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+
+# Make row names of a dataframe the value of a defined column (default 1st) and then remove the column
+clean_dataframe <- function(mydf, rowname_col = 1){
+  my_clean.df <- mydf
+  rownames(my_clean.df) <- my_clean.df[,rowname_col]
+  my_clean.df[,1] <- NULL
+  return(my_clean.df)
+}
+
+create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, abundances_rare.df, mymetadata, mylevel = "OTU", otu_map.df = NULL){
+  counts <- clean_dataframe(counts.df)
+  rel_abundances <- clean_dataframe(abundances.df)
+  counts_rare <- clean_dataframe(counts_rare.df)
+  rel_abundances_rare <- clean_dataframe(abundances_rare.df)
+  
+  # Ensure ordering is the same
+  rel_abundances <- rel_abundances[rownames(counts),,drop = F]
+  counts_rare <- counts_rare[rownames(counts),,drop = F]
+  rel_abundances_rare <- rel_abundances_rare[rownames(counts),,drop = F]
+  
+  # Combine the datasets. Passing as.matrix(counts) captures the rownames as a column. This can be renamed after
+  combined_data <- cbind(melt(as.matrix(counts), variable.name = "sample", value.name = "Read_count"),
+                         melt(rel_abundances, value.name = "Relative_abundance")[,2, drop = F],
+                         melt(counts_rare, value.name = "Read_count_rarefied")[,2, drop = F],
+                         melt(rel_abundances_rare, value.name = "Relative_abundance_rarefied")[,2, drop = F])
+  
+  # Remove samples with a read count of zero
+  combined_data <- combined_data[combined_data$Read_count > 0,]
+  
+  # Calculate logged read counts
+  combined_data$Read_count_logged <- log(combined_data$Read_count, 10)
+  combined_data$Read_count_rarefied_logged <- log(combined_data$Read_count_rarefied, 10)
+  
+  # Fix the Var2 column
+  names(combined_data)[2] <- "Sample"
+  
+  # Merge with metadata. Assumes an Index column matching Sample
+  combined_data <- merge(combined_data, mymetadata, by.x = "Sample", by.y = "Index")
+  
+  if (mylevel == "OTU.ID"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "OTU.ID"
+    combined_data <- merge(combined_data, otu_map.df, by.x = "OTU.ID", by.y = "OTU.ID")
+  }
+  else if (mylevel == "Species"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_species"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "Species", "taxonomy_species")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_species", by.y = "taxonomy_species")
+  }
+  else if (mylevel == "Genus"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_genus"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "taxonomy_genus")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_genus", by.y = "taxonomy_genus")
+  }
+  else if (mylevel == "Family"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_family"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "taxonomy_family")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_family", by.y = "taxonomy_family")
+  }
+  else if (mylevel == "Order"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_order"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "taxonomy_order")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_order", by.y = "taxonomy_order")
+  }
+  else if (mylevel == "Class"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_class"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "taxonomy_class")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_class", by.y = "taxonomy_class")
+  }
+  else if (mylevel == "Phylum"){
+    names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_phylum"
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "taxonomy_phylum")])
+    combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_phylum", by.y = "taxonomy_phylum")
+  }
+  return(combined_data)
+}
+
+
+# Taxonomy-sample matrix to dataframe convertor
+# Just converts a matrix where the row name is a taxonomy label (really can be anything)
+m2df <- function(mymatrix, name_of_taxonomy_col = "taxonomy"){
+  mydf <- as.data.frame(mymatrix)
+  cur_names <- names(mydf)
+  mydf[, name_of_taxonomy_col] <- rownames(mydf)
+  rownames(mydf) <- NULL
+  mydf <- mydf[,c(name_of_taxonomy_col,cur_names)]
+  return(mydf)
+}
+# ------------------------------------------------------------
+# ------------------------------------------------------------
 
 # metaA <- read.table("data/metadata_A.tsv", header = T, sep = "\t")
 # metaB <- read.table("data/metadata_B.tsv", header = T, sep = "\t")
@@ -146,7 +238,7 @@ my_feature_table_files <- list.files(feature_tables_dir)
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA450848",my_feature_table_files)]
 # my_feature_table_files <- my_feature_table_files[grepl("PRJEB30328",my_feature_table_files)]
 # my_feature_table_files <- my_feature_table_files[grepl("PRJNA470773",my_feature_table_files)]
-
+# raw_project_otu_table.df <- data.frame()
 cnt = 0
 # Load and process the OTU table
 for (feature_table_file in my_feature_table_files){
@@ -154,6 +246,7 @@ for (feature_table_file in my_feature_table_files){
   # Load and process the OTU table
   full_path <- paste0(feature_tables_dir, "/",feature_table_file)
   project_otu_table.df <- read.csv(full_path)
+  # raw_project_otu_table.df <- project_otu_table.df
   project_name <- gsub("_.*","", feature_table_file)
   
   
@@ -326,6 +419,7 @@ for (feature_table_file in my_feature_table_files){
   # Also save the unfiltered table, to avoid processing the original data table again 
   write.table(project_otu_table_unfiltered.df, file = paste0("Result_tables/", project_name,"/other/", project_name,"_otu_table_unfiltered.csv"), sep = ",", quote = F, row.names = F)
   
+  
   # ---------------------------------------------------------------------------------------------------------------
   # ---------------------------------------------------------------------------------------------------------------
   # Now we can generate the tables that we will need for different analyses at both the OTU and various taxa levels
@@ -402,6 +496,39 @@ for (feature_table_file in my_feature_table_files){
   otu.m <- otu.m[apply(otu.m, 1, max) != 0,,drop = F]
   
   
+  # -------------------------------------------------------------------------------------------------------------------------------------
+  # -------------------------------------------------------------------------------------------------------------------------------------
+  # Get the most abundant unassigned features
+  # Project table with just unassigned
+  unassigned_project_otu_table_unfiltered.df <- project_otu_table_unfiltered.df[project_otu_table_unfiltered.df$Domain == "Unassigned",]
+  # Convert to dataframe
+  unassigned_otu_unfiltered_rel.df <- m2df(otu_unfiltered_rel.m[as.character(unassigned_project_otu_table_unfiltered.df$OTU.ID),,drop =F],
+                                           name_of_taxonomy_col = "OTU.ID")
+  # Melt
+  unassigned_otu_unfiltered_rel.df <- melt(unassigned_otu_unfiltered_rel.df, variable.name = "Sample", value.name = "Relative_abundance")
+  
+  # Get the top most abundant unassigned features per sample
+  most_abundant_unassigned.df <- unassigned_otu_unfiltered_rel.df %>% 
+    group_by(Sample) %>%
+    filter(Relative_abundance > 0) %>%
+    top_n(n = 10, wt = Relative_abundance) %>% 
+    mutate(Relative_abundance = round(Relative_abundance*100,3)) %>%
+    as.data.frame() 
+  
+  # Get corresponding representative sequence
+  most_abundant_unassigned.df$RepSeq <- unlist(lapply(most_abundant_unassigned.df$OTU.ID, function(x) as.character(unassigned_project_otu_table_unfiltered.df[unassigned_project_otu_table_unfiltered.df$OTU.ID == x,]$RepSeq)))
+  write.csv(x = most_abundant_unassigned.df, file = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned.csv"), row.names = F)
+  
+  # Get unique set of features
+  unique_most_abundant_unassigned.df <- unique(most_abundant_unassigned.df[c("OTU.ID", "RepSeq")])
+  
+  # Write fasta file
+  write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
+              names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
+              file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned_features.fasta"))
+  
+  
+  # -------------------------------------------------------------------------------------------------------------------------------------
   # -------------------------------------------------------------------------------------------------------------------------------------
   #         Rarefying
   
@@ -640,17 +767,6 @@ for (feature_table_file in my_feature_table_files){
   # For example, we may want to know the abundance of a particular Family.
   # Now we will generate the abundance tables at each taxonomy level from Phylum, Class, Order, Family and Genus
   
-  # Taxonomy-sample matrix to dataframe convertor
-  # Just converts a matrix where the row name is a taxonomy label (really can be anything)
-  m2df <- function(mymatrix, name_of_taxonomy_col = "taxonomy"){
-    mydf <- as.data.frame(mymatrix)
-    cur_names <- names(mydf)
-    mydf[, name_of_taxonomy_col] <- rownames(mydf)
-    rownames(mydf) <- NULL
-    mydf <- mydf[,c(name_of_taxonomy_col,cur_names)]
-    return(mydf)
-  }
-  
   # Merge the otu counts back with the taxonomy data
   otu_metadata_merged.df <- merge(otu.df, otu_taxonomy_map.df, by.x = "OTU.ID", by.y = "OTU.ID")
   # temp <- left_join(otu.df, otu_taxonomy_map.df, by = "OTU.ID")
@@ -794,81 +910,6 @@ for (feature_table_file in my_feature_table_files){
   #   return(mymatrix)
   # }
   
-  # Make row names of a dataframe the value of a defined column (default 1st) and then remove the column
-  clean_dataframe <- function(mydf, rowname_col = 1){
-    my_clean.df <- mydf
-    rownames(my_clean.df) <- my_clean.df[,rowname_col]
-    my_clean.df[,1] <- NULL
-    return(my_clean.df)
-  }
-  
-  create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, abundances_rare.df, mymetadata, mylevel = "OTU", otu_map.df = NULL){
-    counts <- clean_dataframe(counts.df)
-    rel_abundances <- clean_dataframe(abundances.df)
-    counts_rare <- clean_dataframe(counts_rare.df)
-    rel_abundances_rare <- clean_dataframe(abundances_rare.df)
-    
-    # Ensure ordering is the same
-    rel_abundances <- rel_abundances[rownames(counts),,drop = F]
-    counts_rare <- counts_rare[rownames(counts),,drop = F]
-    rel_abundances_rare <- rel_abundances_rare[rownames(counts),,drop = F]
-    
-    # Combine the datasets. Passing as.matrix(counts) captures the rownames as a column. This can be renamed after
-    combined_data <- cbind(melt(as.matrix(counts), variable.name = "sample", value.name = "Read_count"),
-                           melt(rel_abundances, value.name = "Relative_abundance")[,2, drop = F],
-                           melt(counts_rare, value.name = "Read_count_rarefied")[,2, drop = F],
-                           melt(rel_abundances_rare, value.name = "Relative_abundance_rarefied")[,2, drop = F])
-    
-    # Remove samples with a read count of zero
-    combined_data <- combined_data[combined_data$Read_count > 0,]
-    
-    # Calculate logged read counts
-    combined_data$Read_count_logged <- log(combined_data$Read_count, 10)
-    combined_data$Read_count_rarefied_logged <- log(combined_data$Read_count_rarefied, 10)
-    
-    # Fix the Var2 column
-    names(combined_data)[2] <- "Sample"
-    
-    # Merge with metadata. Assumes an Index column matching Sample
-    combined_data <- merge(combined_data, mymetadata, by.x = "Sample", by.y = "Index")
-    
-    if (mylevel == "OTU.ID"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "OTU.ID"
-      combined_data <- merge(combined_data, otu_map.df, by.x = "OTU.ID", by.y = "OTU.ID")
-    }
-    else if (mylevel == "Species"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_species"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "Species", "taxonomy_species")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_species", by.y = "taxonomy_species")
-    }
-    else if (mylevel == "Genus"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_genus"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "taxonomy_genus")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_genus", by.y = "taxonomy_genus")
-    }
-    else if (mylevel == "Family"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_family"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "taxonomy_family")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_family", by.y = "taxonomy_family")
-    }
-    else if (mylevel == "Order"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_order"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "taxonomy_order")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_order", by.y = "taxonomy_order")
-    }
-    else if (mylevel == "Class"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_class"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "taxonomy_class")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_class", by.y = "taxonomy_class")
-    }
-    else if (mylevel == "Phylum"){
-      names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_phylum"
-      otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "taxonomy_phylum")])
-      combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_phylum", by.y = "taxonomy_phylum")
-    }
-    return(combined_data)
-  }
-  
   reduced_tax_map <- otu_taxonomy_map.df
   reduced_tax_map$RepSeq <- NULL
   
@@ -935,42 +976,53 @@ for (feature_table_file in my_feature_table_files){
   write.table(order_combined, file = paste0("Result_tables/",project_name,"/other/",project_name,"_Order_counts_abundances_and_metadata.csv"), sep = ",", quote = F, col.names = T, row.names = F)
   write.table(class_combined, file = paste0("Result_tables/",project_name,"/other/",project_name,"_Class_counts_abundances_and_metadata.csv"), sep = ",", quote = F, col.names = T, row.names = F)
   write.table(phylum_combined, file = paste0("Result_tables/",project_name,"/other/",project_name,"_Phylum_counts_abundances_and_metadata.csv"), sep = ",", quote = F, col.names = T, row.names = F)
-  
 }
 
-# Now each individual project has been processed, generate some combine files
-# We won't do this for everything as some of the files are not strictly necessary
-combine_and_save <- function(base_location, mypattern){
+
+# --------------------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------
+
+# Now each individual project has been processed, generate combined files
+
+# First dataframes that can be simply combined without melting
+combine_dataframes <- function(base_location, mypattern){
   filenames <- list.files(base_location,pattern = mypattern,recursive = T,full.names = T)
   All <- lapply(filenames,function(i){read.csv(i, header=T)})
   df <- do.call(rbind.data.frame, All)
 }
 
-write.csv(x = combine_and_save("Result_tables","P.*_processed_metadata.csv"), 
+write.csv(x = combine_dataframes("Result_tables","P.*_processed_metadata.csv"), 
           file = "Result_tables/combined_processed_metadata.csv", row.names = F, quote = F)
 
 temp <- read.csv("Result_tables/combined_processed_metadata.csv")
 length(unique(temp$study_accession))
 length(unique(temp$run_accession))
 
-write.csv(x = combine_and_save("Result_tables","P.*_OTU_counts_abundances_and_metadata.csv"),
+write.csv(x = combine_dataframes("Result_tables","P.*_OTU_counts_abundances_and_metadata.csv"),
           file = "Result_tables/combined_OTU_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
-write.csv(x = combine_and_save("Result_tables","P.*_Genus_counts_abundances_and_metadata.csv"), 
+write.csv(x = combine_dataframes("Result_tables","P.*_Genus_counts_abundances_and_metadata.csv"), 
           file = "Result_tables/combined_Genus_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
-write.csv(x = combine_and_save("Result_tables","P.*_Family_counts_abundances_and_metadata.csv"), 
+write.csv(x = combine_dataframes("Result_tables","P.*_Family_counts_abundances_and_metadata.csv"), 
           file = "Result_tables/combined_Family_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
-write.csv(x = combine_and_save("Result_tables","P.*_QC_summary.csv"), 
+write.csv(x = combine_dataframes("Result_tables","P.*_QC_summary.csv"), 
           file = "Result_tables/combined_QC_summary.csv", row.names = F, quote = F)
 
-write.csv(x = unique(combine_and_save("Result_tables","P.*_otu_taxonomy_map.csv")), 
+write.csv(x = unique(combine_dataframes("Result_tables","P.*_otu_taxonomy_map.csv")), 
           file = "Result_tables/combined_otu_taxonomy_map.csv", row.names = F, quote = F)
 
 
+# write.csv(x = combine_dataframes("Result_tables","P.*_most_abundant_unassigned.csv"), 
+          # file = "Result_tables/combined_most_abundant_unassigned.csv", row.names = F, quote = F)
+temp <- combine_dataframes("Result_tables","P.*_most_abundant_unassigned.csv")
+temp$study_accession <- unlist(lapply(as.character(temp$Sample), function(x) as.character(metadata.df[x,]$study_accession)))
+temp <- temp[c("OTU.ID", "Sample", "study_accession", "Relative_abundance", "RepSeq")]
+write.csv(x = temp, file = "Result_tables/combined_most_abundant_unassigned.csv", row.names = F, quote = F)
 
-myfiles <- list.files("Result_tables", pattern = "P.*_Phylum_counts_rarefied.csv", recursive = T, full.names = T)
+# Combine matrices. These need to be melted together and re-spread
 
 combine_matrices <- function(base_location, mypattern){
   myfiles <- list.files(base_location, pattern = mypattern, recursive = T, full.names = T)
@@ -1006,3 +1058,23 @@ write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances_ra
 
 write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances_rarefied.csv"), 
           file = "Result_tables/combined_Phylum_relative_abundances_rarefied.csv", row.names = F, quote = F)
+
+# ------------------------------------------------------------
+# Combine fasta files
+my_files <- list.files("Result_tables",pattern = "P.*most_abundant_unassigned_features.fasta", recursive = T,include.dirs = T,full.names = T)
+combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
+for (fastafile in my_files){
+  temp <- read.fasta(fastafile,as.string = T,forceDNAtolower = F)
+  for (seq_name in names(temp)){
+    combined_fasta_info.df <- unique(rbind(combined_fasta_info.df, data.frame("OTU.ID" = seq_name,
+                                                                       "RepSeq" = as.character(temp[seq_name]))))
+  }
+}
+dim(combined_fasta_info.df)
+# Write fasta file
+write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
+            names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
+            file.out = paste0("Result_tables/combined_most_abundant_unassigned_features.fasta"))
+# ------------------------------------------------------------
+
+
