@@ -81,13 +81,13 @@ filter_heatmap_matrix <- function(myheatmap, row_max = 0, prevalence = 0){
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
 # Load the OTU - taxonomy mapping file
-otu_taxonomy_map.df <- read.csv("Result_tables/combined_otu_taxonomy_map.csv", header = T)
+otu_taxonomy_map.df <- read.csv("Result_tables/combined/combined_otu_taxonomy_map.csv", header = T)
 
 # Factorise discrete columns
 metadata.df$Commodity <- factor(metadata.df$Commodity)
@@ -103,17 +103,17 @@ metadata.df$Sample_treatment <- factor(metadata.df$Sample_treatment)
 
 # Load relative abundance matrices
 # otu_rare_rel.m <- as.matrix(read.table(file = "Result_tables/relative_abundance_tables/OTU_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
-otu_genus_rare_rel.m <- as.matrix(read.table(file = "Result_tables/combined_Genus_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
-otu_family_rare_rel.m <- as.matrix(read.table(file = "Result_tables/combined_Family_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
-otu_class_rare_rel.m <- as.matrix(read.table(file = "Result_tables/combined_Class_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
-otu_phylum_rare_rel.m <- as.matrix(read.table(file = "Result_tables/combined_Phylum_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
+otu_genus_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Genus_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_family_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Family_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_class_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Class_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_phylum_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Phylum_relative_abundances.csv", sep = ",", header = T, row.names = 1))
 
 # Cleanup column (sample) names - Relative abundance matrices
 # colnames(otu_rare_rel.m) <- gsub("_J.*", "", colnames(otu_rare_rel.m))
-colnames(otu_genus_rare_rel.m) <- gsub("_J.*", "", colnames(otu_genus_rare_rel.m))
-colnames(otu_family_rare_rel.m) <- gsub("_J.*", "", colnames(otu_family_rare_rel.m))
-colnames(otu_class_rare_rel.m) <- gsub("_J.*", "", colnames(otu_class_rare_rel.m))
-colnames(otu_phylum_rare_rel.m) <- gsub("_J.*", "", colnames(otu_phylum_rare_rel.m))
+colnames(otu_genus_rel.m) <- gsub("_J.*", "", colnames(otu_genus_rel.m))
+colnames(otu_family_rel.m) <- gsub("_J.*", "", colnames(otu_family_rel.m))
+colnames(otu_class_rel.m) <- gsub("_J.*", "", colnames(otu_class_rel.m))
+colnames(otu_phylum_rel.m) <- gsub("_J.*", "", colnames(otu_phylum_rel.m))
 
 # and correct metadata
 rownames(metadata.df) <- gsub("_J.*", "", rownames(metadata.df))
@@ -131,8 +131,8 @@ metadata.df$Index <- gsub("_J.*", "", metadata.df$Index)
 
 # Remove samples that are not in the metadata.
 # otu_rare_rel.m <- otu_rare_rel.m[,colnames(otu_rare_rel.m) %in% metadata.df$Index,drop=F]
-otu_genus_rare_rel.m <- otu_genus_rare_rel.m[,colnames(otu_genus_rare_rel.m) %in% metadata.df$Index,drop=F]
-otu_family_rare_rel.m<- otu_family_rare_rel.m[,colnames(otu_family_rare_rel.m) %in% metadata.df$Index,drop=F]
+otu_genus_rel.m <- otu_genus_rare_rel.m[,colnames(otu_genus_rel.m) %in% metadata.df$Index,drop=F]
+otu_family_rel.m<- otu_family_rare_rel.m[,colnames(otu_family_rel.m) %in% metadata.df$Index,drop=F]
 
 
 # ------------------------------------------------------------------------------------
@@ -187,7 +187,8 @@ make_heatmap <- function(myheatmap_matrix,
     # Assumes there is a colour column for each variable in the metadata
     # If there is no colour column, create one and assign from palette
     # internal_colour_palette_10_distinct <- c("#8eec45","#0265e8","#f6a800","#bf6549","#486900","#c655a0","#00d1b6","#ff4431","#aeb85c","#7e7fc8")
-    internal_colour_palette_10_distinct <- my_colour_palette_20_distinct
+    # internal_colour_palette_10_distinct <- my_colour_palette_20_distinct
+    internal_colour_palette_10_distinct <- my_colour_palette_206_distinct
     
     if (!var_colour_name %in% names(internal_metadata.df)){
       myvar_values <- factor(as.character(sort(unique(internal_metadata.df[,myvar]))))
@@ -311,17 +312,17 @@ make_heatmap <- function(myheatmap_matrix,
 # metadata.df$Sample_treatment <- factor(metadata.df$Sample_treatment)
 
 # Define the discrete variables
-discrete_variables <- c("Commodity","Sample_type","Sample_treatment")
+discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_accession")
 
-heatmap_family_rel.m <- filter_heatmap_matrix(otu_family_rare_rel.m, row_max = 0.05, prevalence = 0.2)
-heatmap_genus_rel.m <- filter_heatmap_matrix(otu_genus_rare_rel.m, row_max = 0.05, prevalence = 0.01)
+heatmap_family_rel.m <- filter_heatmap_matrix(otu_family_rel.m, row_max = 0.05, prevalence = 0.2)
+heatmap_genus_rel.m <- filter_heatmap_matrix(otu_genus_rel.m, row_max = 0.05, prevalence = 0.01)
 
 # new_row_names <- unlist(lapply(rownames(heatmap_otu_rel.m), function(x) {paste0(x, "; ", otu_taxonomy_map.df[otu_taxonomy_map.df$OTU.ID == x,]$Genus)}))
 # row_labels.df <- data.frame("Row_label" = rownames(heatmap_otu_rel.m), "Row_label_new" = new_row_names)
 
 make_heatmap(heatmap_family_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined_family_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/combined_family_relative_abundance.pdf"),
              variables = discrete_variables,
              plot_height = 20,
              plot_width = 120,
@@ -334,9 +335,9 @@ make_heatmap(heatmap_family_rel.m*100,
 
 
 
-make_heatmap(otu_class_rare_rel.m*100, 
+make_heatmap(otu_class_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined_class_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/combined_class_relative_abundance.pdf"),
              variables = discrete_variables,
              plot_height = 20,
              plot_width = 120,
@@ -349,9 +350,9 @@ make_heatmap(otu_class_rare_rel.m*100,
 
 
 
-make_heatmap(otu_phylum_rare_rel.m*100, 
+make_heatmap(otu_phylum_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined_phylum_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/combined_phylum_relative_abundance.pdf"),
              variables = discrete_variables,
              plot_height = 8,
              plot_width = 120,

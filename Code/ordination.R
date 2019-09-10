@@ -10,6 +10,9 @@ my_colour_palette_20 <- c("#66bd79","#a35bcf","#5bb643","#d14ea6","#a2b239","#5c
 my_colour_palette_20_distinct <- c("#0057b4","#7fff56","#d600bc","#d8d500","#e76eff","#019932","#9f8fff","#ffc730","#007fac","#a20019","#06fefd","#ff6782","#00774c","#e0c8ff","#717a00","#4b2952","#e2ed7d","#46321e","#ffbd76","#ffb4c6")
 my_colour_palette_30_distinct <- c("#009348","#f579fe","#4fe16e","#b40085","#4d7e00","#4742b4","#f0c031","#016dd9","#d45200","#7499ff","#ef4d2d","#01c9c8","#f8394b","#88d7a6","#d20063","#c8cc5d","#882986","#fdb95d","#404f8f","#917300","#f3aefc","#5c5800","#ff75c3","#00674a","#ba001c","#979760","#8b354c","#ff875f","#943105","#cf9478")
 my_colour_palette_206_distinct <- c("#cfefb4","#7d8b00","#a70079","#552155","#632900","#ffb173","#fbdcf2","#015a6a","#43fdf7","#ff443a","#008186","#3b8aff","#8b5fff","#ff9777","#4200a9","#85f6fd","#c96000","#36218a","#d28900","#0137d7","#30325b","#ff836b","#008b4f","#21ff9d","#00794d","#870052","#e9ec4b","#ce006b","#6e0044","#8a6500","#006971","#432e4b","#ca8dff","#f20059","#44ffe2","#00be5c","#a0d2ff","#1914ab","#4d284e","#59d7ff","#ab9aff","#0151d9","#1de740","#e24500","#9fc400","#610769","#0a4600","#1e365b","#018f3f","#b15fff","#009c5e","#005290","#506100","#f49aff","#0187c1","#ffb5f4","#daf100","#70081d","#ff9890","#c1baff","#ffbe5a","#1b3466","#ff2a7f","#ff5d3c","#e47800","#ac6bff","#1f6000","#006627","#4f4000","#dcd6ff","#ffd7c1","#ed2de4","#a50038","#a5a8ff","#0f2f7f","#b11700","#00e06b","#ffabb8","#015780","#82eaff","#1b2a88","#6f1600","#d3ef9c","#746e00","#01d851","#625300","#01d799","#96fd6c","#ff5ca1","#7b0017","#004c2b","#baf678","#f8aaff","#007c1b","#01a88a","#a71ed8","#fb8cff","#840079","#276d00","#556655","#02b0de","#c0efd7","#63193e","#8e9984","#017ac9","#ff925f","#ff63d7","#294100","#28baff","#5b2523","#35ab00","#69132e","#8a3b00","#a67700","#7fff6a","#002f96","#681a0b","#4d3003","#ff7de6","#0190d8","#a69700","#ff6282","#d3f266","#ffc4cf","#ffac3c","#d064ff","#d07aff","#c3005d","#9d0067","#0167c1","#8cfe82","#ffd68f","#8cfcaf","#f50096","#00c2a2","#aa5e00","#02c16d","#4e4bf6","#ffd962","#004793","#93d800","#462a58","#323a03","#4f9eff","#2b3a25","#2defff","#02edd6","#864e00","#ffc59f","#e7e9ab","#014cc4","#437bff","#00afba","#ff7d82","#8a1ed4","#ff48b3","#acf7ab","#005550","#7600a6","#bc0028","#00adab","#02dfbf","#ba004c","#004760","#ebc5ff","#0162d7","#9b3900","#5869ff","#ff6160","#87b6ff","#ff6796","#ff8422","#ff8440","#b500a8","#937fff","#0132bd","#f48e00","#1e8800","#462370","#3e3614","#9ca800","#efe5bf","#aeb6a0","#d9aaff","#d8ef89","#cec800","#ffb8b3","#4a2c42","#01715b","#b8ebff","#ff9ec0","#ff93ec","#ffe0aa","#65b300","#6a8b00","#f6e77c","#ff85c0","#5de522","#a5f6ca","#c70077","#5a4149","#a3b700","#ff63c4","#63fecd","#93f6e7","#01b4a4")
+my_colour_palette_10_distinct <- c("#8eec45","#0265e8","#f6a800","#bf6549","#486900","#c655a0","#00d1b6","#ff4431","#aeb85c","#7e7fc8")
+my_colour_palette_10_soft <- c("#9E788F","#4C5B61","#678D58","#AD5233","#A0A083","#4D456A","#588578","#D0AC4C","#2A7BA0","#931621")
+my_colour_palette_15 <- c("#77b642","#7166d9","#cfa240","#b351bb","#4fac7f","#d44891","#79843a","#c68ad4","#d15a2c","#5ba7d9","#ce4355","#6570ba","#b67249","#9b4a6f","#df8398")
 ############################################################
 
 
@@ -50,6 +53,13 @@ get_samples_missing_data <- function(my_metadata, variables){
   return(unique(samples_missing_data))
 }
 
+df2matrix <- function(mydataframe){
+  mymatrix <- mydataframe
+  rownames(mymatrix) <- mydataframe[,1]
+  mymatrix[,1] <- NULL
+  mymatrix <- as.matrix(mymatrix)
+  mymatrix
+}
 # ------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------
 # Set the working directory
@@ -57,51 +67,66 @@ setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
 # Load count table at the OTU level. These are the counts for OTUs that were above our abundance thresholds
-otu_rare.df <- read.table("Result_tables/combined_OTU_counts_rarefied.csv", sep =",", header =T)
-# otu.df <- read.table("Result_tables/count_tables/OTU_counts.csv", sep =",", header =T)
-
-
-# otu_rare.df <- otu_rare.df[,names(otu_rare.df) %in% c("OTU.ID", as.character(metadata.df$Index))]
+# otu_rare.df <- read.table("Result_tables/combined_OTU_counts_rarefied.csv", sep =",", header =T)
+otu.df <- read.table("Result_tables/combined/combined_OTU_counts.csv", sep =",", header =T)
+otu_genus.df <- read.table("Result_tables/combined/combined_Genus_counts.csv", sep =",", header =T)
 
 # Create matrices
-otu_rare.m <- otu_rare.df
-rownames(otu_rare.m) <- otu_rare.df$OTU.ID
-otu_rare.m$OTU.ID <- NULL
-otu_rare.m <- as.matrix(otu_rare.m)
+# otu_rare.m <- otu_rare.df
+# rownames(otu_rare.m) <- otu_rare.df$OTU.ID
+# otu_rare.m$OTU.ID <- NULL
+# otu_rare.m <- as.matrix(otu_rare.m)
 
+otu.m <- df2matrix(otu.df)
+otu_genus.m <- df2matrix(otu_genus.df)
 
 # Filter by reads per sample if you don't want to use the existing filtering
 minimum_reads <- 0
 # temp <- otu_rare.m[,colSums(otu_rare.m) == minimum_reads]
-otu_rare.m <- otu_rare.m[,colSums(otu_rare.m) >= minimum_reads]
-# otu.m <- otu.m[,colSums(otu.m) >= minimum_reads]
-metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu_rare.m),]
+# otu_rare.m <- otu_rare.m[,colSums(otu_rare.m) >= minimum_reads]
+otu.m <- otu.m[,colSums(otu.m) >= minimum_reads]
+# metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu_rare.m),]
+metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu.m),]
 
 
 # Order the matrices and metadata to be the same order
 metadata.df <- metadata.df[order(rownames(metadata.df)),]
-otu_rare.m <- otu_rare.m[,order(rownames(metadata.df))]
-# otu.m <- otu.m[,order(rownames(metadata.df))]
+# otu_rare.m <- otu_rare.m[,order(rownames(metadata.df))]
+otu.m <- otu.m[,order(rownames(metadata.df))]
+otu_genus.m <- otu_genus.m[,order(rownames(metadata.df))]
 
-summary((apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m))) > 0.01)
-otu_rare.m <- otu_rare.m[apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m)) > 0.01,]
+# summary((apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m))) > 0.01)
+# otu_rare.m <- otu_rare.m[apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m)) > 0.01,]
+# otu_rare_filtered.m <- otu_rare.m[apply(otu_rare.m,1,max) >= 25,]
+# otu_rare_clr_filtered.m <- clr(otu_rare_filtered.m)
 
-otu_rare_filtered.m <- otu_rare.m[apply(otu_rare.m,1,max) >= 25,]
-otu_rare_clr_filtered.m <- clr(otu_rare_filtered.m)
-# otu_clr_filtered.m <- clr(otu_filtered.m)
-# otu_rare_clr_rel_filtered.m <- clr(t(t(otu_rare_filtered.m)/colSums(otu_rare_filtered.m)))
+# Filter by prevalance. Feature that are in at least %N percent of samples.
+# TODO - features that are also in % of projects? Or % sample per project?
+prevalence_fraction <- 0.05
+summary((apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m))) > prevalence_fraction)
+
+otu_filtered.m <- otu.m[apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m)) > prevalence_fraction,]
+# Filter to those features that have a maximum read count of # in at least one sample
+dim(otu_filtered.m)
+otu_filtered.m <- otu_filtered.m[apply(otu_filtered.m,1,max) >= 25,]
+otu_clr_filtered.m <- clr(otu_filtered.m)
+
+otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_genus.m)) > prevalence_fraction,]
+otu_genus_filtered.m <- otu_genus_filtered.m[apply(otu_genus_filtered.m,1,max) >= 25,]
+otu_genus_clr.m <- clr(otu_genus_filtered.m)
 
 # If there are negative values, assign them a value of zero
-otu_rare_clr_filtered.m[which(otu_rare_clr_filtered.m < 0)] <- 0
-# otu_clr_filtered.m[which(otu_clr_filtered.m < 0)] <- 0
+# otu_rare_clr_filtered.m[which(otu_rare_clr_filtered.m < 0)] <- 0
+otu_clr_filtered.m[which(otu_clr_filtered.m < 0)] <- 0
 # otu_rare_clr_rel_filtered.m[which(otu_rare_clr_rel_filtered.m < 0)] <- 0
-
+metadata_filtered.df <- metadata.df[rownames(metadata.df) %in% colnames(otu_clr_filtered.m),]
+# rownames(metadata_filtered.df) == colnames(otu_clr_filtered.m)
 
 # --------------------------------------------------------------------------------
 # Ordination analysis
@@ -109,6 +134,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
                          point_alpha = 1, plot_width = 10, plot_height=10, point_size = 0.8, point_line_thickness = 1,
                          label_sites = F, label_species = F,
                          legend_x = NULL, legend_y = NULL, legend_x_offset = 0, legend_y_offset = 0,
+                         legend_cex = 0.6,
                          plot_spiders = NULL, plot_ellipses = NULL,plot_hulls = NULL, legend_cols = 2, legend_title = NULL,
                          label_ellipse = F, ellipse_label_size = 0.5, ellipse_border_width = 1,variable_colours_available = F, 
                          plot_title = NULL, use_shapes = F, my_levels = NULL){
@@ -393,7 +419,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
       #bg = "white",
       bty = "n",
       ncol = legend_cols,
-      cex = 0.6,
+      cex = legend_cex,
       # pt.cex = 0.6,
       pt.lwd = point_line_thickness,
       y.intersp =1,
@@ -406,24 +432,113 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   }
 }
 
+# Sample_treatment
+# Commodity
+# Sample_type
 
-temp <- rda(t(otu_rare_clr_filtered.m), data = metadata.df) # ~1 makes it unconstrained
+# samples <- rownames(subset(metadata.df, Commodity == "Arsenic"))
+# temp <- rda(t(otu_genus_clr.m[,samples]), data = metadata.df, scale = T) # ~1 makes it unconstrained
+temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
+
+# temp <- rda(t(clr(otu_genus.m)), scale = T)
+# temp <- rda(t(otu_genus_clr.m), data = metadata.df) # ~1 makes it unconstrained
+# temp <- rda(t(otu_clr_filtered.m), data = metadata.df) # ~1 makes it unconstrained
+# temp <- rda(t(otu_clr_filtered.m), data = metadata.df) # ~1 makes it unconstrained
+# temp <- prcomp(t(otu_clr_filtered.m), center = T, scale = T)
+# capscale(t(otu_filtered.m)~1, distance = "bray")
+# plot(temp)
+# plot(temp, scaling = 3)
+# pca.res <- prcomp(t(otu_clr_filtered.m), center = T, scale. = T)
+# temp <- rda(t(otu_clr_filtered.m)~Commodity, data = metadata.df) # ~1 makes it unconstrained
+# temp <- capscale(t(otu_clr_filtered.m) ~ Commodity, data = metadata_filtered.df)
+# temp <- metaMDS(t(otu_genus_clr.m),distance = "euclidean",trace=0)
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -6, legend_y = 4,
-             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_x = -5, legend_y = 4,
+             point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
              legend_title = "Sample type",
+             legend_cex = .5,
              plot_title = "",
-             # limits = c(-5,5,-5,5),
+             limits = c(-5,4,0,2),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
              use_shapes = T,
              ellipse_border_width = .5,
+             include_legend = T,
              label_ellipse = F, ellipse_label_size = .5,
-             colour_palette = my_colour_palette_206_distinct,
+             colour_palette = rev(my_colour_palette_15),
+             variable_to_plot = "Sample_type", legend_cols = 1,
+             variable_colours_available = F,
+             # my_levels = c(""),
+             filename = paste0("Result_figures/combined/combined_Sample_type_pca.pdf"))
+
+generate_pca(temp, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -5, legend_y = 4,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-5,4,0,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .5,
+             colour_palette = my_colour_palette_15,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = F,
-             # my_levels = c("LC", "AK", "SCC"),
-             filename = paste0("Result_figures/combined_Commodity_pca.pdf"))
+             # my_levels = c(""),
+             filename = paste0("Result_figures/combined/combined_Commodity_pca.pdf"))
+
+
+
+generate_pca(temp, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -5, legend_y = 4,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Sample treatment",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-5,4,0,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .5,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Sample_treatment", legend_cols = 1,
+             variable_colours_available = F,
+             # my_levels = c(""),
+             filename = paste0("Result_figures/combined/combined_Sample_treatment_pca.pdf"))
+
+
+
+generate_pca(temp, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -5, legend_y = 4,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Study accession",
+             legend_cex = .4,
+             plot_title = "",
+             limits = c(-5,4,0,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .5,
+             colour_palette = my_colour_palette_206_distinct,
+             variable_to_plot = "study_accession", legend_cols = 2,
+             variable_colours_available = F,
+             # my_levels = c(""),
+             filename = paste0("Result_figures/combined/combined_study_accession_pca.pdf"))
+
+

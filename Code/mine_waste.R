@@ -76,6 +76,9 @@ dir.create(file.path(".", "Result_figures"), showWarnings = FALSE)
 dir.create(file.path(".", "Result_tables"), showWarnings = FALSE)
 dir.create(file.path(".", "Result_objects"), showWarnings = FALSE)
 
+dir.create(file.path("./Result_tables","combined"), showWarnings = FALSE)
+dir.create(file.path("./Result_figures","combined"), showWarnings = FALSE)
+
 
 create_project_result_dirs <- function(project_name){
   
@@ -207,6 +210,26 @@ m2df <- function(mymatrix, name_of_taxonomy_col = "taxonomy"){
 # write.csv(x = metadata.df, file = "data/metadata.csv", quote = F, row.names = F)
 metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t")
 
+# --------------------------------------------------------------------
+# Note, the following projects are the same, either can be removed
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJNA493908/
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJEB28611/
+metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA493908",]
+
+# We are only interested in a samples that were targetted at the V4 region
+metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
+
+# Remove samples where it was explicit that the ITS region was sequenced
+metadata.df <- subset(metadata.df, region_ITS_targeted == "no")
+
+# Remove samples where it was explicity that the 18S region was targeted
+# metadata.df[metadata.df$region_18S_targeted == "",]$region_18S_targeted <- "no"
+metadata.df <- subset(metadata.df, region_18S_targeted == "no")
+
+dim(metadata.df)
+length(unique(metadata.df$study_accession))
+
+# --------------------------------------------------------------------
 # Make empty cells NA
 metadata.df[metadata.df == ''] <- NA
 
@@ -215,14 +238,6 @@ metadata.df[metadata.df == ''] <- NA
 rownames(metadata.df) <- metadata.df$Index
 
 
-# We are only interested in a samples that were targetted at the V4 region
-metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
-
-dim(metadata.df)
-length(unique(metadata.df$study_accession))
-
-# Also remove samples where it was explicit that the ITS region was sequenced
-metadata.df <- subset(metadata.df, ITS_targetted == "no")
 
 # Remove samples that are not in the list of projects
 # mydir <- "data/feature_stats_AP19_separate_downsampled"
@@ -993,26 +1008,26 @@ combine_dataframes <- function(base_location, mypattern){
 }
 
 write.csv(x = combine_dataframes("Result_tables","P.*_processed_metadata.csv"), 
-          file = "Result_tables/combined_processed_metadata.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_processed_metadata.csv", row.names = F, quote = F)
 
-temp <- read.csv("Result_tables/combined_processed_metadata.csv")
+temp <- read.csv("Result_tables/combined/combined_processed_metadata.csv")
 length(unique(temp$study_accession))
 length(unique(temp$run_accession))
 
 write.csv(x = combine_dataframes("Result_tables","P.*_OTU_counts_abundances_and_metadata.csv"),
-          file = "Result_tables/combined_OTU_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_OTU_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
 write.csv(x = combine_dataframes("Result_tables","P.*_Genus_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined_Genus_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
 write.csv(x = combine_dataframes("Result_tables","P.*_Family_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined_Family_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_Family_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
 write.csv(x = combine_dataframes("Result_tables","P.*_QC_summary.csv"), 
-          file = "Result_tables/combined_QC_summary.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_QC_summary.csv", row.names = F, quote = F)
 
 write.csv(x = unique(combine_dataframes("Result_tables","P.*_otu_taxonomy_map.csv")), 
-          file = "Result_tables/combined_otu_taxonomy_map.csv", row.names = F, quote = F)
+          file = "Result_tables/combined/combined_otu_taxonomy_map.csv", row.names = F, quote = F)
 
 
 # write.csv(x = combine_dataframes("Result_tables","P.*_most_abundant_unassigned.csv"), 
@@ -1020,7 +1035,7 @@ write.csv(x = unique(combine_dataframes("Result_tables","P.*_otu_taxonomy_map.cs
 temp <- combine_dataframes("Result_tables","P.*_most_abundant_unassigned.csv")
 temp$study_accession <- unlist(lapply(as.character(temp$Sample), function(x) as.character(metadata.df[x,]$study_accession)))
 temp <- temp[c("OTU.ID", "Sample", "study_accession", "Relative_abundance", "RepSeq")]
-write.csv(x = temp, file = "Result_tables/combined_most_abundant_unassigned.csv", row.names = F, quote = F)
+write.csv(x = temp, file = "Result_tables/combined/combined_most_abundant_unassigned.csv", row.names = F, quote = F)
 
 # Combine matrices. These need to be melted together and re-spread
 
@@ -1041,40 +1056,60 @@ combine_matrices <- function(base_location, mypattern){
 # temp <- combine_matrices("Result_tables", "P.*_Phylum_counts_rarefied.csv")
 
 
-write.csv(x = combine_matrices("Result_tables","P.*_Genus_counts_rarefied.csv"), 
-          file = "Result_tables/combined_Genus_counts_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_Genus_counts.csv"), 
+          file = "Result_tables/combined/combined_Genus_counts.csv", row.names = F, quote = F)
 
-write.csv(x = combine_matrices("Result_tables","P.*_OTU_counts_rarefied.csv"), 
-          file = "Result_tables/combined_OTU_counts_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_OTU_counts.csv"), 
+          file = "Result_tables/combined/combined_OTU_counts.csv", row.names = F, quote = F)
 
-write.csv(x = combine_matrices("Result_tables","P.*_Genus_relative_abundances_rarefied.csv"), 
-          file = "Result_tables/combined_Genus_relative_abundances_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_Genus_relative_abundances.csv"), 
+          file = "Result_tables/combined/combined_Genus_relative_abundances.csv", row.names = F, quote = F)
 
-write.csv(x = combine_matrices("Result_tables","P.*_Family_relative_abundances_rarefied.csv"), 
-          file = "Result_tables/combined_Family_relative_abundances_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_Family_relative_abundances.csv"), 
+          file = "Result_tables/combined/combined_Family_relative_abundances.csv", row.names = F, quote = F)
 
-write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances_rarefied.csv"), 
-          file = "Result_tables/combined_Class_relative_abundances_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances.csv"), 
+          file = "Result_tables/combined/combined_Class_relative_abundances.csv", row.names = F, quote = F)
 
-write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances_rarefied.csv"), 
-          file = "Result_tables/combined_Phylum_relative_abundances_rarefied.csv", row.names = F, quote = F)
+write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances.csv"), 
+          file = "Result_tables/combined/combined_Phylum_relative_abundances.csv", row.names = F, quote = F)
+
+# write.csv(x = combine_matrices("Result_tables","P.*_Genus_counts_rarefied.csv"), 
+#           file = "Result_tables/combined_Genus_counts_rarefied.csv", row.names = F, quote = F)
+# 
+# write.csv(x = combine_matrices("Result_tables","P.*_OTU_counts_rarefied.csv"), 
+#           file = "Result_tables/combined_OTU_counts_rarefied.csv", row.names = F, quote = F)
+# 
+# write.csv(x = combine_matrices("Result_tables","P.*_Genus_relative_abundances_rarefied.csv"), 
+#           file = "Result_tables/combined_Genus_relative_abundances_rarefied.csv", row.names = F, quote = F)
+# 
+# write.csv(x = combine_matrices("Result_tables","P.*_Family_relative_abundances_rarefied.csv"), 
+#           file = "Result_tables/combined_Family_relative_abundances_rarefied.csv", row.names = F, quote = F)
+# 
+# write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances_rarefied.csv"), 
+#           file = "Result_tables/combined_Class_relative_abundances_rarefied.csv", row.names = F, quote = F)
+# 
+# write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances_rarefied.csv"), 
+#           file = "Result_tables/combined_Phylum_relative_abundances_rarefied.csv", row.names = F, quote = F)
 
 # ------------------------------------------------------------
 # Combine fasta files
 my_files <- list.files("Result_tables",pattern = "P.*most_abundant_unassigned_features.fasta", recursive = T,include.dirs = T,full.names = T)
+# my_files <- my_files[grepl("PRJEB30328", my_files)]
 combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
 for (fastafile in my_files){
+  # print(fastafile)
   temp <- read.fasta(fastafile,as.string = T,forceDNAtolower = F)
   for (seq_name in names(temp)){
     combined_fasta_info.df <- unique(rbind(combined_fasta_info.df, data.frame("OTU.ID" = seq_name,
                                                                        "RepSeq" = as.character(temp[seq_name]))))
   }
 }
-dim(combined_fasta_info.df)
+# combined_fasta_info.df[combined_fasta_info.df$OTU.ID == "a790bd7b8fea7a2ae52dc0c6aba93e51",]
 # Write fasta file
-write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
-            names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
-            file.out = paste0("Result_tables/combined_most_abundant_unassigned_features.fasta"))
+write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
+            names = as.character(combined_fasta_info.df$OTU.ID),
+            file.out = paste0("Result_tables/combined/combined_most_abundant_unassigned_features.fasta"))
 # ------------------------------------------------------------
 
 
