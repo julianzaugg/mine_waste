@@ -1023,6 +1023,13 @@ write.csv(x = combine_dataframes("Result_tables","P.*_Genus_counts_abundances_an
 write.csv(x = combine_dataframes("Result_tables","P.*_Family_counts_abundances_and_metadata.csv"), 
           file = "Result_tables/combined/combined_Family_counts_abundances_and_metadata.csv", row.names = F, quote = F)
 
+write.csv(x = combine_dataframes("Result_tables","P.*_Class_counts_abundances_and_metadata.csv"), 
+          file = "Result_tables/combined/combined_Class_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+
+write.csv(x = combine_dataframes("Result_tables","P.*_Phylum_counts_abundances_and_metadata.csv"), 
+          file = "Result_tables/combined/combined_Phylum_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+
+
 write.csv(x = combine_dataframes("Result_tables","P.*_QC_summary.csv"), 
           file = "Result_tables/combined/combined_QC_summary.csv", row.names = F, quote = F)
 

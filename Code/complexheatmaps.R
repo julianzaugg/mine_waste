@@ -87,31 +87,18 @@ metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv"
 rownames(metadata.df) <- metadata.df$Index
 
 # Load the OTU - taxonomy mapping file
-otu_taxonomy_map.df <- read.csv("Result_tables/combined/combined_otu_taxonomy_map.csv", header = T)
+# otu_taxonomy_map.df <- read.csv("Result_tables/combined/combined_otu_taxonomy_map.csv", header = T)
 
 # Factorise discrete columns
 metadata.df$Commodity <- factor(metadata.df$Commodity)
 metadata.df$Sample_type <- factor(metadata.df$Sample_type)
 metadata.df$Sample_treatment <- factor(metadata.df$Sample_treatment)
 
-
-# Load count matrices and covert to log space
-# otu_rare_log.m <- log_matrix(as.matrix(read.table(file = "Result_tables/count_tables/OTU_counts_rarefied.csv", sep = ",", header = T, row.names = 1)))
-# otu_genus_rare_log.m <- log_matrix(as.matrix(read.table(file = "Result_tables/combined_Genus_counts_rarefied.csv", sep = ",", header = T, row.names = 1)))
-# otu_family_rare_log.m <- log_matrix(as.matrix(read.table(file = "Result_tables/count_tables/Family_counts_rarefied.csv", sep = ",", header = T, row.names = 1)))
-
-
 # Load relative abundance matrices
-# otu_rare_rel.m <- as.matrix(read.table(file = "Result_tables/relative_abundance_tables/OTU_relative_abundances_rarefied.csv", sep = ",", header = T, row.names = 1))
-otu_genus_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Genus_relative_abundances.csv", sep = ",", header = T, row.names = 1))
-otu_family_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Family_relative_abundances.csv", sep = ",", header = T, row.names = 1))
 otu_class_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Class_relative_abundances.csv", sep = ",", header = T, row.names = 1))
 otu_phylum_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Phylum_relative_abundances.csv", sep = ",", header = T, row.names = 1))
 
 # Cleanup column (sample) names - Relative abundance matrices
-# colnames(otu_rare_rel.m) <- gsub("_J.*", "", colnames(otu_rare_rel.m))
-colnames(otu_genus_rel.m) <- gsub("_J.*", "", colnames(otu_genus_rel.m))
-colnames(otu_family_rel.m) <- gsub("_J.*", "", colnames(otu_family_rel.m))
 colnames(otu_class_rel.m) <- gsub("_J.*", "", colnames(otu_class_rel.m))
 colnames(otu_phylum_rel.m) <- gsub("_J.*", "", colnames(otu_phylum_rel.m))
 
@@ -131,9 +118,8 @@ metadata.df$Index <- gsub("_J.*", "", metadata.df$Index)
 
 # Remove samples that are not in the metadata.
 # otu_rare_rel.m <- otu_rare_rel.m[,colnames(otu_rare_rel.m) %in% metadata.df$Index,drop=F]
-otu_genus_rel.m <- otu_genus_rare_rel.m[,colnames(otu_genus_rel.m) %in% metadata.df$Index,drop=F]
-otu_family_rel.m<- otu_family_rare_rel.m[,colnames(otu_family_rel.m) %in% metadata.df$Index,drop=F]
-
+# otu_genus_rel.m <- otu_genus_rare_rel.m[,colnames(otu_genus_rel.m) %in% metadata.df$Index,drop=F]
+# otu_family_rel.m<- otu_family_rare_rel.m[,colnames(otu_family_rel.m) %in% metadata.df$Index,drop=F]
 
 # ------------------------------------------------------------------------------------
 
@@ -313,46 +299,19 @@ make_heatmap <- function(myheatmap_matrix,
 
 # Define the discrete variables
 discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_accession")
+# discrete_variables <- c("Commodity","study_accession")
 
-heatmap_family_rel.m <- filter_heatmap_matrix(otu_family_rel.m, row_max = 0.05, prevalence = 0.2)
-heatmap_genus_rel.m <- filter_heatmap_matrix(otu_genus_rel.m, row_max = 0.05, prevalence = 0.01)
+# heatmap_class_rel.m <- filter_heatmap_matrix(otu_class_rel.m, row_max = 0.00, prevalence = 0.0)
+# heatmap_family_rel.m <- filter_heatmap_matrix(otu_family_rel.m, row_max = 0.05, prevalence = 0.2)
+# heatmap_genus_rel.m <- filter_heatmap_matrix(otu_genus_rel.m, row_max = 0.05, prevalence = 0.01)
 
 # new_row_names <- unlist(lapply(rownames(heatmap_otu_rel.m), function(x) {paste0(x, "; ", otu_taxonomy_map.df[otu_taxonomy_map.df$OTU.ID == x,]$Genus)}))
 # row_labels.df <- data.frame("Row_label" = rownames(heatmap_otu_rel.m), "Row_label_new" = new_row_names)
 
-make_heatmap(heatmap_family_rel.m*100, 
-             mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined/combined_family_relative_abundance.pdf"),
-             variables = discrete_variables,
-             plot_height = 20,
-             plot_width = 120,
-             cluster_columns = F,
-             cluster_rows = T,
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
-             legend_title = "Relative abundance %",
-             palette_choice = 'purple'
-)
-
-
-
-make_heatmap(otu_class_rel.m*100, 
-             mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined/combined_class_relative_abundance.pdf"),
-             variables = discrete_variables,
-             plot_height = 20,
-             plot_width = 120,
-             cluster_columns = F,
-             cluster_rows = T,
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
-             legend_title = "Relative abundance %",
-             palette_choice = 'purple'
-)
-
-
 
 make_heatmap(otu_phylum_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined/combined_phylum_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/phylum_relative_abundance.pdf"),
              variables = discrete_variables,
              plot_height = 8,
              plot_width = 120,
@@ -363,4 +322,93 @@ make_heatmap(otu_phylum_rel.m*100,
              palette_choice = 'purple'
 )
 
+make_heatmap(otu_class_rel.m*100, 
+             mymetadata = metadata.df,
+             filename = paste0("Result_figures/combined/class_relative_abundance.pdf"),
+             variables = discrete_variables,
+             plot_height = 20,
+             plot_width = 120,
+             cluster_columns = F,
+             cluster_rows = T,
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_title = "Relative abundance %",
+             palette_choice = 'purple'
+)
 
+# Get the top 10 taxa per project and just show those in the plot
+
+
+
+
+# Calculate the (min, max, mean, median, stdev, #samples) abundances of each taxa at each taxa level
+generate_taxa_summary <- function(mydata, taxa_column, group_by_columns = NULL){
+  # if (is.null(group_by_columns)){
+  #   select_columns <- c(taxa_column, "Read_count", "Relative_abundance")
+  # } else{
+  select_columns <- c(taxa_column, group_by_columns, "Sample", "study_accession", "Read_count", "Relative_abundance")
+  total_samples <- length(unique(mydata$Sample))
+  total_projects <- length(unique(mydata$study_accession))
+  
+  taxa_group_summary <- 
+    mydata %>% 
+    dplyr::select_(.dots = select_columns) %>%
+    dplyr::group_by_(.dots = c(taxa_column, group_by_columns)) %>%
+    dplyr::mutate(N_samples = n_distinct(Sample), N_projects = n_distinct(study_accession)) %>% # number of unique samples/index
+    dplyr::group_by_(.dots = c(group_by_columns)) %>%
+    dplyr::mutate(N_total_samples_in_group = n_distinct(Sample),
+                  N_total_projects_in_group = n_distinct(study_accession))  %>%
+    dplyr::group_by_(.dots = c(group_by_columns, taxa_column)) %>%
+    dplyr::select(-Sample, -study_accession) %>%
+    dplyr::summarise(N_samples = max(N_samples),
+                     N_total_samples_in_group = max(N_total_samples_in_group),
+                     N_projects = max(N_projects),
+                     N_total_projects_in_group = max(N_total_projects_in_group),
+                     Percent_group_samples = round((max(N_samples) / max(N_total_samples_in_group))*100, 2),
+                     Percent_total_samples = round((max(N_samples) / total_samples)*100, 2),
+                     Percent_group_projects = round((max(N_projects) / max(N_total_projects_in_group))*100, 2),
+                     Percent_total_projects = round((max(N_projects) / total_projects)*100, 2),
+                     
+                     Mean_read_count = round(mean(Read_count), 2),
+                     Median_read_count = median(Read_count),
+                     Min_read_count = min(Read_count),
+                     Max_read_count = max(Read_count),
+                     Summed_read_count = sum(Read_count),
+                      
+                     Mean_relative_abundance = round(mean(Relative_abundance), 5),
+                     Median_relative_abundance = round(median(Relative_abundance), 5),
+                     Min_relative_abundance = round(min(Relative_abundance),5),
+                     Max_relative_abundance = round(max(Relative_abundance),5),
+                     Summed_relative_abundance = round(sum(Relative_abundance),5),
+    ) %>%
+    as.data.frame()
+  return(taxa_group_summary)
+}
+
+
+filter_summary_to_top_n <- function(taxa_summary, grouping_variables, abundance_column, my_top_n = 10){
+  # Get the top N taxa as described in a provided taxa summary table.
+  out <- 
+    taxa_summary %>%
+    dplyr::group_by_(.dots = c(grouping_variables)) %>%
+    dplyr::arrange(dplyr::desc(get(abundance_column))) %>%
+    dplyr::top_n(my_top_n, get(abundance_column)) %>% 
+    # dplyr::arrange_(.dots = c(grouping_variables),abundance_column) %>%
+    dplyr::arrange_(.dots = c(grouping_variables)) %>%
+    as.data.frame()
+  return(out)
+}
+
+genus_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity", "study_accession"))
+genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_genus_Commodity_study_accession.csv",row.names = F, quote = F)
+
+genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity"))
+genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_genus_Commodity.csv",row.names = F, quote = F)

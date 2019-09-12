@@ -95,11 +95,17 @@ otu.m <- otu.m[,colSums(otu.m) >= minimum_reads]
 metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu.m),]
 
 
+metadata.df <- subset(metadata.df, Commodity != "Unknown")
+
 # Order the matrices and metadata to be the same order
 metadata.df <- metadata.df[order(rownames(metadata.df)),]
+
 # otu_rare.m <- otu_rare.m[,order(rownames(metadata.df))]
 otu.m <- otu.m[,order(rownames(metadata.df))]
 otu_genus.m <- otu_genus.m[,order(rownames(metadata.df))]
+
+# otu.m <- t(rrarefy(t(otu.m),sample = 5000))
+# otu_genus.m <- t(rrarefy(t(otu_genus.m),sample = 5000))
 
 # summary((apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m))) > 0.01)
 # otu_rare.m <- otu_rare.m[apply(otu_rare.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_rare.m)) > 0.01,]
@@ -118,6 +124,7 @@ otu_filtered.m <- otu_filtered.m[apply(otu_filtered.m,1,max) >= 25,]
 otu_clr_filtered.m <- clr(otu_filtered.m)
 
 otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_genus.m)) > prevalence_fraction,]
+# otu_genus_filtered.m <- otu_genus.m
 otu_genus_filtered.m <- otu_genus_filtered.m[apply(otu_genus_filtered.m,1,max) >= 25,]
 otu_genus_clr.m <- clr(otu_genus_filtered.m)
 
@@ -439,8 +446,8 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
 # samples <- rownames(subset(metadata.df, Commodity == "Arsenic"))
 # temp <- rda(t(otu_genus_clr.m[,samples]), data = metadata.df, scale = T) # ~1 makes it unconstrained
 temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
+# temp <- rda(t(otu_genus_clr.m), data = metadata.df) # ~1 makes it unconstrained
 
-# temp <- rda(t(clr(otu_genus.m)), scale = T)
 # temp <- rda(t(otu_genus_clr.m), data = metadata.df) # ~1 makes it unconstrained
 # temp <- rda(t(otu_clr_filtered.m), data = metadata.df) # ~1 makes it unconstrained
 # temp <- rda(t(otu_clr_filtered.m), data = metadata.df) # ~1 makes it unconstrained
@@ -452,6 +459,7 @@ temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unc
 # temp <- rda(t(otu_clr_filtered.m)~Commodity, data = metadata.df) # ~1 makes it unconstrained
 # temp <- capscale(t(otu_clr_filtered.m) ~ Commodity, data = metadata_filtered.df)
 # temp <- metaMDS(t(otu_genus_clr.m),distance = "euclidean",trace=0)
+
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
@@ -542,3 +550,55 @@ generate_pca(temp, mymetadata = metadata.df,
              filename = paste0("Result_figures/combined/combined_study_accession_pca.pdf"))
 
 
+
+temp <- rda(t(otu_genus_clr.m)~study_accession, data = metadata.df, scale = T)
+generate_pca(temp, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -5, legend_y = 4,
+             point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-5,4,0,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .5,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Commodity", legend_cols = 1,
+             variable_colours_available = F,
+             # my_levels = c(""),
+             filename = paste0("Result_figures/combined/combined_Commodity_rda_constrained_study_accession.pdf"))
+
+
+run_permanova_custom <- function(my_metadata, my_formula){
+  stat_sig_table <- NULL
+  result <- adonis(my_formula,data = my_metadata, permu=999,method="euclidean")
+  # result <- adonis(my_formula,data = my_metadata, permu=999,method="bray")
+  for (r in rownames(result$aov.tab)){
+    variable <- r
+    Degress_of_freedom <- result$aov.tab[r,]$Df[1]
+    SumOfSqs <- round(result$aov.tab[r,]$SumsOfSqs[1], 3)
+    meanSqs <- round(result$aov.tab[r,]$MeanSqs[1], 3)
+    F.model <- round(result$aov.tab[r,]$F.Model[1], 3)
+    R2 <- round(result$aov.tab[r,]$R2[1], 3)
+    p_value <- round(result$aov.tab[r,]$`Pr(>F)`[1], 5)
+    stat_sig_table <- rbind(stat_sig_table, data.frame(variable,
+                                                       Degress_of_freedom,
+                                                       SumOfSqs,
+                                                       meanSqs,
+                                                       F.model,
+                                                       R2,
+                                                       p_value))
+  }
+  print(result)
+  names(stat_sig_table) <- c("Term","Df", "SumOfSqs","MeanSqs","F.Model","R2","Pr(>F)")
+  stat_sig_table <- stat_sig_table[order(stat_sig_table$"Pr(>F)"),]
+  stat_sig_table
+}
+
+permanova_results <- run_permanova_custom(my_metadata = metadata.df,
+                                          my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Commodity:study_accession))

@@ -55,7 +55,7 @@ top_blast_hits.df <- separate(top_blast_hits.df, "Taxonomy", into = c("Super_kin
 top_blast_hits.df[is.na(top_blast_hits.df)] <- "Unassigned"
 
 
-top_blast_hits.df$Phylum <- as.character(lapply(top_blast_hits.df$Phylum, FUN = function(x) gsub("^", "p_", x)))
+# top_blast_hits.df$Phylum <- as.character(lapply(top_blast_hits.df$Phylum, FUN = function(x) gsub("^", "p_", x)))
 
 # Recreate the full taxonomy string with the 'prettier' taxa labels
 top_blast_hits.df$taxonomy_species <- with(top_blast_hits.df, paste(Super_kingdom, Kingdom, Phylum, Class, Order, Family,Genus, Species, sep =";"))
@@ -74,6 +74,7 @@ full_table.df <- left_join(full_table.df, top_blast_hits.df, by = c("OTU.ID" = "
 full_table.df$study_accession.y <- NULL
 names(full_table.df)[names(full_table.df) == "study_accession.x"] <- "study_accession"
 full_table.df <- full_table.df[!is.na(full_table.df$Taxonomy),]
+write.csv(full_table.df, file = "Result_tables/blast_results.csv", quote = F, row.names = F)
 # full_table.df %>% select(-instrument_platform)
 # OTU.ID
 # Sample
