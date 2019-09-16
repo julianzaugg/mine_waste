@@ -42,6 +42,7 @@ library(reshape2)
 library(gplots)
 
 library(seqinr) # For writing fasta files
+source("Code/helper_functions.R")
 
 
 common_theme <- theme(
@@ -182,16 +183,7 @@ create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, 
 }
 
 
-# Taxonomy-sample matrix to dataframe convertor
-# Just converts a matrix where the row name is a taxonomy label (really can be anything)
-m2df <- function(mymatrix, name_of_taxonomy_col = "taxonomy"){
-  mydf <- as.data.frame(mymatrix)
-  cur_names <- names(mydf)
-  mydf[, name_of_taxonomy_col] <- rownames(mydf)
-  rownames(mydf) <- NULL
-  mydf <- mydf[,c(name_of_taxonomy_col,cur_names)]
-  return(mydf)
-}
+
 # ------------------------------------------------------------
 # ------------------------------------------------------------
 
@@ -225,6 +217,9 @@ metadata.df <- subset(metadata.df, region_ITS_targeted == "no")
 # Remove samples where it was explicity that the 18S region was targeted
 # metadata.df[metadata.df$region_18S_targeted == "",]$region_18S_targeted <- "no"
 metadata.df <- subset(metadata.df, region_18S_targeted == "no")
+
+# Remove Projects where the Commodity is unknown
+# metadata.df <- subset(metadata.df, Commodity == "unknown")
 
 dim(metadata.df)
 length(unique(metadata.df$study_accession))
@@ -542,6 +537,7 @@ for (feature_table_file in my_feature_table_files){
               names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
               file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned_features.fasta"))
   
+  # TODO - get the most abundant assigned features. These can be used, for example, to confirm targeted region
   
   # -------------------------------------------------------------------------------------------------------------------------------------
   # -------------------------------------------------------------------------------------------------------------------------------------
@@ -1007,27 +1003,55 @@ combine_dataframes <- function(base_location, mypattern){
   df <- do.call(rbind.data.frame, All)
 }
 
-write.csv(x = combine_dataframes("Result_tables","P.*_processed_metadata.csv"), 
-          file = "Result_tables/combined/combined_processed_metadata.csv", row.names = F, quote = F)
+# ----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+# Generate processed metadata, which is the metadata for the samples passing processing / QC
+processed_metadata.df <- combine_dataframes("Result_tables","P.*_processed_metadata.csv")
+
+# Assign unique colours for each discrete state for each variable
+# Sample_type
+variable_values <- sort(factor(as.character(unique(processed_metadata.df$Sample_type)), 
+                                  levels = sort(unique(as.character(processed_metadata.df$Sample_type)))))
+variable_colours <- setNames(my_colour_palette_15[1:length(variable_values)], variable_values)
+all_variable_colours <- as.character(lapply(as.character(metadata.df$Sample_type), function(x) variable_colours[x]))
+processed_metadata.df$Sample_type_colour <- all_variable_colours
+
+# Commodity
+variable_values <- sort(factor(as.character(unique(processed_metadata.df$Commodity)), 
+                               levels = sort(unique(as.character(processed_metadata.df$Commodity)))))
+variable_colours <- setNames(my_colour_palette_15[1:length(variable_values)], variable_values)
+all_variable_colours <- as.character(lapply(as.character(metadata.df$Commodity), function(x) variable_colours[x]))
+processed_metadata.df$Commodity_colour <- all_variable_colours
+
+# Sample_treatment
+variable_values <- sort(factor(as.character(unique(processed_metadata.df$Sample_treatment)), 
+                               levels = sort(unique(as.character(processed_metadata.df$Sample_treatment)))))
+variable_colours <- setNames(my_colour_palette_15[1:length(variable_values)], variable_values)
+all_variable_colours <- as.character(lapply(as.character(metadata.df$Sample_treatment), function(x) variable_colours[x]))
+processed_metadata.df$Sample_treatment_colour <- all_variable_colours
+
+# study_accession
+variable_values <- sort(factor(as.character(unique(processed_metadata.df$study_accession)), 
+                               levels = sort(unique(as.character(processed_metadata.df$study_accession)))))
+variable_colours <- setNames(my_colour_palette_206_distinct[1:length(variable_values)], variable_values)
+all_variable_colours <- as.character(lapply(as.character(metadata.df$study_accession), function(x) variable_colours[x]))
+processed_metadata.df$study_accession_colour <- all_variable_colours
+
+write.csv(processed_metadata.df, file = "Result_tables/combined/combined_processed_metadata.csv", row.names = F, quote = F)
+# write.csv(x = combine_dataframes("Result_tables","P.*_processed_metadata.csv"), 
+          # file = "Result_tables/combined/combined_processed_metadata.csv", row.names = F, quote = F)
+
+# ----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
 
 temp <- read.csv("Result_tables/combined/combined_processed_metadata.csv")
 length(unique(temp$study_accession))
 length(unique(temp$run_accession))
 
-write.csv(x = combine_dataframes("Result_tables","P.*_OTU_counts_abundances_and_metadata.csv"),
-          file = "Result_tables/combined/combined_OTU_counts_abundances_and_metadata.csv", row.names = F, quote = F)
-
-write.csv(x = combine_dataframes("Result_tables","P.*_Genus_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv", row.names = F, quote = F)
-
-write.csv(x = combine_dataframes("Result_tables","P.*_Family_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined/combined_Family_counts_abundances_and_metadata.csv", row.names = F, quote = F)
-
-write.csv(x = combine_dataframes("Result_tables","P.*_Class_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined/combined_Class_counts_abundances_and_metadata.csv", row.names = F, quote = F)
-
-write.csv(x = combine_dataframes("Result_tables","P.*_Phylum_counts_abundances_and_metadata.csv"), 
-          file = "Result_tables/combined/combined_Phylum_counts_abundances_and_metadata.csv", row.names = F, quote = F)
+for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
+  write.csv(x = combine_dataframes("Result_tables",paste0("P.*_",tax_level,"_counts_abundances_and_metadata.csv")), 
+            file = paste0("Result_tables/combined/combined_",tax_level,"_counts_abundances_and_metadata.csv"), row.names = F, quote = F)
+}
 
 
 write.csv(x = combine_dataframes("Result_tables","P.*_QC_summary.csv"), 
@@ -1063,41 +1087,13 @@ combine_matrices <- function(base_location, mypattern){
 # temp <- combine_matrices("Result_tables", "P.*_Phylum_counts_rarefied.csv")
 
 
-write.csv(x = combine_matrices("Result_tables","P.*_Genus_counts.csv"), 
-          file = "Result_tables/combined/combined_Genus_counts.csv", row.names = F, quote = F)
+for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
+  write.csv(x = combine_matrices("Result_tables",paste0("P.*_",tax_level,"_counts.csv")), 
+            file = paste0("Result_tables/combined/combined_",tax_level,"_counts.csv"), row.names = F, quote = F)
+  write.csv(x = combine_matrices("Result_tables",paste0("P.*_",tax_level,"_relative_abundances.csv")), 
+            file = paste0("Result_tables/combined/combined_",tax_level,"_relative_abundances.csv"), row.names = F, quote = F)
+}
 
-write.csv(x = combine_matrices("Result_tables","P.*_OTU_counts.csv"), 
-          file = "Result_tables/combined/combined_OTU_counts.csv", row.names = F, quote = F)
-
-write.csv(x = combine_matrices("Result_tables","P.*_Genus_relative_abundances.csv"), 
-          file = "Result_tables/combined/combined_Genus_relative_abundances.csv", row.names = F, quote = F)
-
-write.csv(x = combine_matrices("Result_tables","P.*_Family_relative_abundances.csv"), 
-          file = "Result_tables/combined/combined_Family_relative_abundances.csv", row.names = F, quote = F)
-
-write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances.csv"), 
-          file = "Result_tables/combined/combined_Class_relative_abundances.csv", row.names = F, quote = F)
-
-write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances.csv"), 
-          file = "Result_tables/combined/combined_Phylum_relative_abundances.csv", row.names = F, quote = F)
-
-# write.csv(x = combine_matrices("Result_tables","P.*_Genus_counts_rarefied.csv"), 
-#           file = "Result_tables/combined_Genus_counts_rarefied.csv", row.names = F, quote = F)
-# 
-# write.csv(x = combine_matrices("Result_tables","P.*_OTU_counts_rarefied.csv"), 
-#           file = "Result_tables/combined_OTU_counts_rarefied.csv", row.names = F, quote = F)
-# 
-# write.csv(x = combine_matrices("Result_tables","P.*_Genus_relative_abundances_rarefied.csv"), 
-#           file = "Result_tables/combined_Genus_relative_abundances_rarefied.csv", row.names = F, quote = F)
-# 
-# write.csv(x = combine_matrices("Result_tables","P.*_Family_relative_abundances_rarefied.csv"), 
-#           file = "Result_tables/combined_Family_relative_abundances_rarefied.csv", row.names = F, quote = F)
-# 
-# write.csv(x = combine_matrices("Result_tables","P.*_Class_relative_abundances_rarefied.csv"), 
-#           file = "Result_tables/combined_Class_relative_abundances_rarefied.csv", row.names = F, quote = F)
-# 
-# write.csv(x = combine_matrices("Result_tables","P.*_Phylum_relative_abundances_rarefied.csv"), 
-#           file = "Result_tables/combined_Phylum_relative_abundances_rarefied.csv", row.names = F, quote = F)
 
 # ------------------------------------------------------------
 # Combine fasta files
