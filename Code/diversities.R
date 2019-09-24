@@ -110,4 +110,4 @@ generate_diversity_boxplot <- function(mydata, variable, metric, variable_colour
   myplot
 }
 
-generate_diversity_boxplot(full, "Commodity", "Chao1",variable_colours_available = F)
+generate_diversity_boxplot(full, "Commodity", "Chao1",variable_colours_available = T)

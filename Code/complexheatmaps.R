@@ -108,7 +108,7 @@ discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_acce
 # new_row_names <- unlist(lapply(rownames(heatmap_otu_rel.m), function(x) {paste0(x, "; ", otu_taxonomy_map.df[otu_taxonomy_map.df$OTU.ID == x,]$Genus)}))
 # row_labels.df <- data.frame("Row_label" = rownames(heatmap_otu_rel.m), "Row_label_new" = new_row_names)
 
-
+# FULL HEATMAPS
 make_heatmap(otu_phylum_rel.m*100, 
              mymetadata = metadata.df,
              filename = paste0("Result_figures/combined/phylum_relative_abundance.pdf"),
@@ -117,7 +117,8 @@ make_heatmap(otu_phylum_rel.m*100,
              plot_width = 120,
              cluster_columns = F,
              cluster_rows = T,
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Relative abundance %",
              palette_choice = 'purple'
 )
@@ -130,11 +131,115 @@ make_heatmap(otu_class_rel.m*100,
              plot_width = 120,
              cluster_columns = F,
              cluster_rows = T,
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Relative abundance %",
              palette_choice = 'purple'
 )
 
+
+# --------------------------------------------------------
+# CLASS LEVEL
+class_data.df <- read.csv("Result_tables/combined/combined_Class_counts_abundances_and_metadata.csv",header = T)
+
+# Remove unknown commodities
+class_data.df <- subset(class_data.df, Commodity != "Unknown")
+
+# Generate taxonomy summary for commodity and study
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity", "study_accession"))
+
+# Get top taxa by mean abundance
+class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity_study_accession.csv",row.names = F, quote = F)
+
+# Generate matrix for heatmap
+heatmap.m <- class_taxa_summary.df[c("study_accession", "taxonomy_class","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment"),
+             column_title = "Study accession",
+             plot_height = 7,
+             plot_width = 10,
+             cluster_columns = T,
+             cluster_rows = T,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
+
+# temp2 <- log(temp*100, 2)
+# temp2[is.infinite(temp2)] <- 0
+# make_heatmap(temp2, 
+#              mymetadata = temp_metadata.df,
+#              filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance_log_scale.pdf"),
+#              variables = c("Commodity","Sample_type","Sample_treatment"),
+#              column_title = "Study accession",
+#              plot_height = 7,
+#              plot_width = 10,
+#              cluster_columns = F,
+#              cluster_rows = F,
+#              column_title_size = 10,
+#              row_title_size = 10,
+#              annotation_name_size = 6,
+#              my_annotation_palette = my_colour_palette_15,
+#              #legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+#              my_breaks = round(c(0,log(c(0.001, 0.005,0.05, seq(.1,.6,.1))*100,2)),2),
+#              legend_title = "Mean relative abundance %",
+#              palette_choice = 'purple'
+# )
+
+
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
+class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
+write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity.csv",row.names = F, quote = F)
+
+heatmap.m <- class_taxa_summary.df[c("Commodity", "taxonomy_class","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
+heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity","Commodity_colour"), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/top_10_class_per_commodity_mean_relative_abundance.pdf"),
+             variables = c("Commodity"),
+             column_title = "Commodity",
+             plot_height = 5,
+             plot_width = 7,
+             cluster_columns = T,
+             cluster_rows = T,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 0,
+             my_annotation_palette = my_colour_palette_15,
+             #my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
 
 # ---------------------------------------------------------------------------
 # Make heatmaps for top taxa, using mean abundance
@@ -221,97 +326,6 @@ family_taxa_summary.df <- generate_taxa_summary(mydata = family_data.df,taxa_col
 family_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = family_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
 write.csv(family_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_family_Commodity.csv",row.names = F, quote = F)
 
-# -------
-class_data.df <- read.csv("Result_tables/combined/combined_Class_counts_abundances_and_metadata.csv",header = T)
-class_data.df <- subset(class_data.df, Commodity != "Unknown")
-
-class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity", "study_accession"))
-class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity_study_accession.csv",row.names = F, quote = F)
-
-
-temp <- class_taxa_summary.df[c("study_accession", "taxonomy_class","Mean_relative_abundance")]
-temp <- temp[temp$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
-temp <- temp %>% spread(study_accession, Mean_relative_abundance,fill = 0)
-
-temp <- df2matrix(temp)
-temp_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment"), drop = F])
-temp_metadata.df <- subset(temp_metadata.df, Commodity != "Unknown")
-rownames(temp_metadata.df) <- temp_metadata.df$study_accession
-
-temp2 <- log(temp*100, 2)
-temp2[is.infinite(temp2)] <- 0
-make_heatmap(temp2, 
-             mymetadata = temp_metadata.df,
-             filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance_log_scale.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
-             column_title = "Study accession",
-             plot_height = 7,
-             plot_width = 10,
-             cluster_columns = F,
-             cluster_rows = F,
-             column_title_size = 10,
-             row_title_size = 10,
-             annotation_name_size = 6,
-             my_annotation_palette = my_colour_palette_15,
-             #legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
-             my_breaks = round(c(0,log(c(0.001, 0.005,0.05, seq(.1,.6,.1))*100,2)),2),
-             legend_title = "Mean relative abundance %",
-             palette_choice = 'purple'
-)
-
-make_heatmap(temp*100, 
-             mymetadata = temp_metadata.df,
-             filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
-             column_title = "Study accession",
-             plot_height = 7,
-             plot_width = 10,
-             cluster_columns = F,
-             cluster_rows = F,
-             column_title_size = 10,
-             row_title_size = 10,
-             annotation_name_size = 6,
-             my_annotation_palette = my_colour_palette_15,
-             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
-             legend_title = "Mean relative abundance %",
-             palette_choice = 'purple'
-)
-
-
-class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
-class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity.csv",row.names = F, quote = F)
-
-temp <- class_taxa_summary.df[c("Commodity", "taxonomy_class","Mean_relative_abundance")]
-temp <- temp[temp$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
-temp <- temp %>% spread(Commodity, Mean_relative_abundance,fill = 0)
-
-temp <- df2matrix(temp)
-temp_metadata.df <- unique(metadata.df[,c("Commodity"), drop = F])
-temp_metadata.df <- subset(temp_metadata.df, Commodity != "Unknown")
-rownames(temp_metadata.df) <- temp_metadata.df$Commodity
-
-make_heatmap(temp*100, 
-             mymetadata = temp_metadata.df,
-             filename = paste0("Result_figures/combined/top_10_class_per_commodity_mean_relative_abundance.pdf"),
-             variables = c("Commodity"),
-             column_title = "Commodity",
-             plot_height = 5,
-             plot_width = 6,
-             cluster_columns = T,
-             cluster_rows = T,
-             column_title_size = 10,
-             row_title_size = 10,
-             annotation_name_size = 0,
-             my_annotation_palette = my_colour_palette_15,
-             #my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
-             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
-             legend_title = "Mean relative abundance %",
-             palette_choice = 'purple'
-)
 
 # --------
 

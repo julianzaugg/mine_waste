@@ -16,6 +16,28 @@ my_colour_palette_10_soft <- c("#9E788F","#4C5B61","#678D58","#AD5233","#A0A083"
 my_colour_palette_15 <- c("#77b642","#7166d9","#cfa240","#b351bb","#4fac7f","#d44891","#79843a","#c68ad4","#d15a2c","#5ba7d9","#ce4355","#6570ba","#b67249","#9b4a6f","#df8398")
 ############################################################
 
+
+common_theme <- theme(
+  panel.border = element_blank(), 
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  axis.line = element_line(colour = "black", size = 0.5),
+  panel.background = element_blank(),
+  strip.background = element_rect(fill = "white", colour = "white", size = 1),
+  legend.key=element_blank(),
+  legend.direction="vertical",
+  legend.background = element_rect(colour ="white", size = .3),
+  legend.text.align = 0,
+  legend.title = element_text(size=10, face="bold"),
+  legend.title.align = 0.5,
+  legend.margin = margin(c(2,2,2,2)),
+  legend.key.height=unit(.4,"cm"),
+  legend.text = element_text(size = 8),
+  axis.text = element_text(size = 9, colour = "black"),
+  axis.title = element_text(size = 10,face = "bold"),
+  complete = F,
+  plot.title = element_text(size = 8))
+
 # For each rowname (OTU), get the corresponding taxonomy_species
 # Assumes "OTU.ID" and "taxonomy_species" columns in the provided map dataframe
 assign_taxonomy_to_otu <- function(otutable, taxon_map){
@@ -44,65 +66,82 @@ setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 # Load the processed metadata
 metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
 
+# Remove unknown commodity samples
+metadata.df <- subset(metadata.df, Commodity != "Unknown")
+
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
+
+# Order the metadata
+metadata.df <- metadata.df[order(rownames(metadata.df)),]
 
 # Load count table at the OTU level. These are the counts for OTUs that were above our abundance thresholds
 # otu_rare.df <- read.table("Result_tables/combined_OTU_counts_rarefied.csv", sep =",", header =T)
 # otu.df <- read.table("Result_tables/combined/combined_OTU_counts.csv", sep =",", header =T)
-otu.m <- df2matrix(otu.df)
+# otu.m <- df2matrix(otu.df)
 # Filter by reads per sample if you don't want to use the existing filtering
-minimum_reads <- 0
-otu.m <- otu.m[,colSums(otu.m) >= minimum_reads]
-metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu.m),]
-otu_rare.m <- t(rrarefy(t(otu.m),sample = 5000))
+# minimum_reads <- 0
+# otu.m <- otu.m[,colSums(otu.m) >= minimum_reads]
+# metadata.df <- metadata.df[rownames(metadata.df) %in% colnames(otu.m),]
+# otu_rare.m <- t(rrarefy(t(otu.m),sample = 5000))
 # Filter by prevalance. Feature that are in at least %N percent of samples.
 # TODO - features that are also in % of projects? Or % sample per project?
-prevalence_fraction <- 0.05
-summary((apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m))) > prevalence_fraction)
+# prevalence_fraction <- 0.05
+# summary((apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m))) > prevalence_fraction)
 
-otu_filtered.m <- otu.m[apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m)) > prevalence_fraction,]
+# otu_filtered.m <- otu.m[apply(otu.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu.m)) > prevalence_fraction,]
 # Filter to those features that have a maximum read count of # in at least one sample
-dim(otu_filtered.m)
-otu_filtered.m <- otu_filtered.m[apply(otu_filtered.m,1,max) >= 25,]
-otu_clr_filtered.m <- clr(otu_filtered.m)
+# dim(otu_filtered.m)
+# otu_filtered.m <- otu_filtered.m[apply(otu_filtered.m,1,max) >= 25,]
+# otu_clr_filtered.m <- clr(otu_filtered.m)
 # If there are negative values, assign them a value of zero
-otu_clr_filtered.m[which(otu_clr_filtered.m < 0)] <- 0
+# otu_clr_filtered.m[which(otu_clr_filtered.m < 0)] <- 0
 
-
-
+# Load full count table
+# otu.df <- read.table("Result_tables/combined/combined_OTU_counts.csv", sep =",", header =T)
 otu_genus.df <- read.table("Result_tables/combined/combined_Genus_counts.csv", sep =",", header =T)
+otu_class.df <- read.table("Result_tables/combined/combined_Class_counts.csv", sep =",", header =T)
+
+# Load data with metadata
+# otu_data.df <- read.csv("Result_tables/combined/combined_OTU_counts_abundances_and_metadata.csv",header = T)
 genus_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+class_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+
+# Generate summary for each commodity + project
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,
                                                taxa_column = "taxonomy_genus",
                                                group_by_columns = c("Commodity", "study_accession"))
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,
+                                               taxa_column = "taxonomy_class",
+                                               group_by_columns = c("Commodity", "study_accession"))
 
-# Create matrices
+# Filter to taxa that are in at least 10 percent of samples for each group
+length(unique(genus_taxa_summary.df$taxonomy_genus))
+genus_taxa_summary_filtered.df <- genus_taxa_summary.df %>% filter(Percent_group_samples > 10)
+length(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
 
-otu_genus.m <- df2matrix(otu_genus.df)
-metadata.df <- subset(metadata.df, Commodity != "Unknown")
+# Create matrix (also filter to rows of interest)
+otu_genus.m <- df2matrix(otu_genus.df)[unique(genus_taxa_summary_filtered.df$taxonomy_genus),]
+otu_class.m <- df2matrix(otu_class.df)[unique(class_taxa_summary_filtered.df$taxonomy_class),]
 
 # Order the matrices and metadata to be the same order
-metadata.df <- metadata.df[order(rownames(metadata.df)),]
-otu.m <- otu.m[,rownames(metadata.df)]
+# otu.m <- otu.m[,rownames(metadata.df)]
 otu_genus.m <- otu_genus.m[,rownames(metadata.df)]
+otu_class.m <- otu_class.m[,rownames(metadata.df)]
 
-# colnames(otu_genus.m)[!colnames(otu_genus.m) %in% rownames(metadata.df)]
-# "PRJEB28850"
+# Filter to those entries that have at least # counts in at least one sample
+otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m,1,max) >= 25,]
+otu_class_filtered.m <- otu_class.m[apply(otu_class.m,1,max) >= 25,]
 
-otu_genus_rare.m <- t(rrarefy(t(otu_genus.m),sample = 5000))
-
-
-
-otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m, 1, function(x) {length(which(x > 0))}) / length(colnames(otu_genus.m)) > prevalence_fraction,]
-# otu_genus_filtered.m <- otu_genus.m
-otu_genus_filtered.m <- otu_genus_filtered.m[apply(otu_genus_filtered.m,1,max) >= 25,]
+# CLR transform
 otu_genus_clr.m <- clr(otu_genus_filtered.m)
-otu_genus_rare_clr.m <- clr(otu_genus_rare.m)
+otu_class_clr.m <- clr(otu_class_filtered.m)
+# otu_genus_rare_clr.m <- clr(otu_genus_rare.m)
 
+# Correct negative values if present
 otu_genus_clr.m[which(otu_genus_clr.m < 0)] <- 0
-otu_genus_rare_clr.m[which(otu_genus_rare_clr.m < 0)] <- 0
-# metadata_filtered.df <- metadata.df[rownames(metadata.df) %in% colnames(otu_clr_filtered.m),]
+otu_class_clr.m[which(otu_class_clr.m < 0)] <- 0
+# otu_genus_rare_clr.m[which(otu_genus_rare_clr.m < 0)] <- 0
 
 # --------------------------------------------------------------------------------
 # Ordination analysis
@@ -110,30 +149,30 @@ otu_genus_rare_clr.m[which(otu_genus_rare_clr.m < 0)] <- 0
 # Sample_treatment
 # Commodity
 # Sample_type
-temp <- decostand(t(otu_genus_rare_clr.m), method = "hellinger")
-m.pcoa <- capscale(t(otu_genus_rare.m)~1, data = metadata.df, dist = "bray")
-m.pcoa <- capscale(t(otu_genus_rare_clr.m)~1, data = metadata.df, dist = "bray")
-
-generate_pca(m.pcoa, mymetadata = metadata.df,
-             plot_height = 5, plot_width = 5,
-             legend_x = -3, legend_y = 1,
-             point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
-             legend_title = "Commodity",
-             legend_cex = .5,
-             plot_title = "",
-             # limits = c(-5,4,0,2),
-             plot_spiders = F,
-             plot_ellipses = F,
-             plot_hulls = F,
-             use_shapes = T,
-             ellipse_border_width = .5,
-             include_legend = T,
-             label_ellipse = F, ellipse_label_size = .5,
-             colour_palette = my_colour_palette_15,
-             variable_to_plot = "Commodity", legend_cols = 1,
-             variable_colours_available = F,
-             # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_Commodity_pca__hellinger_bray.pdf"))
+# temp <- decostand(t(otu_genus_rare_clr.m), method = "hellinger")
+# m.pcoa <- capscale(t(otu_genus_rare.m)~1, data = metadata.df, dist = "bray")
+# m.pcoa <- capscale(t(otu_genus_clr.m)~1, data = metadata.df, dist = "bray")
+# 
+# generate_pca(m.pcoa, mymetadata = metadata.df,
+#              plot_height = 5, plot_width = 5,
+#              legend_x = -3, legend_y = 1,
+#              point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
+#              legend_title = "Commodity",
+#              legend_cex = .5,
+#              plot_title = "",
+#              # limits = c(-5,4,0,2),
+#              plot_spiders = F,
+#              plot_ellipses = F,
+#              plot_hulls = F,
+#              use_shapes = T,
+#              ellipse_border_width = .5,
+#              include_legend = T,
+#              label_ellipse = F, ellipse_label_size = .5,
+#              colour_palette = my_colour_palette_15,
+#              variable_to_plot = "Commodity", legend_cols = 1,
+#              variable_colours_available = F,
+#              # my_levels = c(""),
+#              filename = paste0("Result_figures/combined/combined_Commodity_pca__bray.pdf"))
 
 
 # ------------------------------------------------------------------
@@ -168,31 +207,80 @@ generate_pca(m.pcoa, mymetadata = metadata.df,
 
 # temp <- rda(t(otu_genus_clr.m[,samples]), data = metadata.df, scale = T) # ~1 makes it unconstrained
 # temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
-temp <- rda(t(otu_genus_clr.m), data = metadata.df) 
+temp <- rda(t(otu_genus_clr.m), data = metadata.df)
+# temp <- rda(t(otu_class_clr.m), data = metadata.df)
 # temp <- rda(t(otu_genus_clr.m)~Commodity, data = metadata.df) # ~1 makes it unconstrained
-
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
              legend_x = -5, legend_y = 4,
+             # legend_x = -2, legend_y = 2,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Commodity",
              legend_cex = .5,
              plot_title = "",
              limits = c(-5,4,-1,2),
+             # limits = c(-2,2,-2,2),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
              use_shapes = T,
              ellipse_border_width = .5,
              include_legend = T,
-             label_ellipse = F, ellipse_label_size = .5,
+             label_ellipse = F, ellipse_label_size = .3,
              colour_palette = my_colour_palette_15,
              variable_to_plot = "Commodity", legend_cols = 1,
-             variable_colours_available = F,
+             variable_colours_available = T,
              # my_levels = c(""),
              filename = paste0("Result_figures/combined/combined_Commodity_pca.pdf"))
+# ------------------------------------------------
+# PC scores for each sample (site)
+pca_site_scores <- m2df(scores(temp, display = "sites"), "Sample")
 
+# Filter to taxonomy in pca object
+genus_abundance_pc_scores.df <- subset(genus_data.df, taxonomy_genus %in% rownames(otu_genus_clr.m))
+
+# Combine with existing metadata
+genus_abundance_pc_scores.df <- left_join(genus_abundance_pc_scores.df, pca_site_scores, by = "Sample")
+
+# Filter to columns of interest
+genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[,c("Sample", "study_accession", "Commodity", "Sample_type", "Sample_treatment", "taxonomy_genus","Relative_abundance", "PC1", "PC2")]
+
+# Filter out entries where there is no PC score
+genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[!is.na(genus_abundance_pc_scores.df$PC1),]
+
+# Calculate the correlation between the abundances for each taxa and the PC1 and PC2 scores
+genus_abundance_pc_correlations.df <- 
+  genus_abundance_pc_scores.df %>% 
+  group_by(taxonomy_genus) %>% summarise(Pearson_PC1 = cor(PC1, Relative_abundance, method = "pearson"),
+                                         Pearson_PC2 = cor(PC2, Relative_abundance, method = "pearson"),
+                                         Spearman_PC1 = cor(PC1, Relative_abundance, method = "spearman"),
+                                         Spearman_PC2 = cor(PC2, Relative_abundance, method = "spearman"), 
+                                         N_Samples = n_distinct(Sample),
+                                         N_Projects = n_distinct(study_accession)) %>% 
+  # filter(N_Samples > 5, N_Projects > 1) %>% 
+  filter(N_Samples > 5) %>% 
+  arrange(desc(abs(Pearson_PC1))) %>%
+  as.data.frame()
+# plot(genus_abundance_pc_correlations.df$Pearson_PC1, genus_abundance_pc_correlations.df$Spearman_PC1)
+
+genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[genus_abundance_pc_scores.df$taxonomy_genus %in% 
+                                                               subset(genus_abundance_pc_correlations.df, abs(Pearson_PC2) > .6)$taxonomy_genus,]
+genus_abundance_pc_scores.df$Relative_abundance <- genus_abundance_pc_scores.df$Relative_abundance*100
+max(genus_abundance_pc_scores.df$Relative_abundance)
+ggplot(genus_abundance_pc_scores.df, aes(x = PC2, y = Relative_abundance, color = Commodity, shape = Commodity)) + 
+  geom_point() +
+  scale_colour_manual(values = my_colour_palette_10_distinct) +
+  scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
+  common_theme + facet_wrap(~taxonomy_genus, scales = "free_y")
+# theme(legend.position = "none") 
+# ------------------------------------------------
+
+pca_specie_scores <- scores(temp, display = "species")
+pca_percentages <- (temp$CA$eig/sum(temp$CA$eig)) * 100
+
+spec_scores <- melt(pca_specie_scores)
+length(unique(spec_scores$Var1))
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,

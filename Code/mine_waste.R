@@ -6,7 +6,7 @@
 # these sequences are what you would call an amplicon sequence variant (ASV).
 # For more information, see : https://www.nature.com/articles/ismej2017119
 #************************************
-
+  
 detachAllPackages <- function() {
   
   basic.packages <- c("package:stats","package:graphics","package:grDevices","package:utils","package:datasets","package:methods","package:base")

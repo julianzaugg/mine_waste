@@ -226,8 +226,8 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   }
   
   # Order the site scores by the order of the rows in the metadata
-  print(dim(pca_site_scores))
-  print(dim(metadata_ordered.df))
+  # print(dim(pca_site_scores))
+  # print(dim(metadata_ordered.df))
   pca_site_scores <- pca_site_scores[rownames(metadata_ordered.df),]
   
   all_sample_colours <- as.character(
@@ -583,7 +583,9 @@ make_heatmap <- function(myheatmap_matrix,
                 clustering_method_columns = "average",
                 clustering_method_rows = "average",
                 show_column_dend = T, 
-                show_row_dend = F,
+                show_row_dend = T,
+                # column_dend_height = unit(2, "cm"),
+                # row_dend_width = unit(3, "cm"),
                 
                 # Borders
                 border = F,
