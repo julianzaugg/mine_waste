@@ -40,14 +40,14 @@ common_theme <- theme(
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
-otu.m <- as.matrix(read.csv("Result_tables/combined/combined_OTU_counts.csv", row.names =  1))
+otu.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_OTU_counts.csv", row.names =  1))
 
-# Create the rarefied matrix for comparison
+# Create the rarefied matrix
 otu_rare.m <- t(rrarefy(t(otu.m[,colSums(otu.m) >= 5000]), 5000))
 
 # create phyloseq object
@@ -66,7 +66,6 @@ otu_rare_alpha.df <- otu_rare_alpha.df[rownames(metadata.df),]
 
 # Combine the metadata and the diversity metrics into a single dataframe
 full=cbind(metadata.df, otu_rare_alpha.df)
-
 
 
 generate_diversity_boxplot <- function(mydata, variable, metric, variable_colours_available = T){

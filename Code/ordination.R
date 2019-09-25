@@ -64,7 +64,7 @@ setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
 
 # Remove unknown commodity samples
 metadata.df <- subset(metadata.df, Commodity != "Unknown")
@@ -99,14 +99,21 @@ metadata.df <- metadata.df[order(rownames(metadata.df)),]
 
 # Load full count table
 # otu.df <- read.table("Result_tables/combined/combined_OTU_counts.csv", sep =",", header =T)
-otu_genus.df <- read.table("Result_tables/combined/combined_Genus_counts.csv", sep =",", header =T)
-otu_class.df <- read.table("Result_tables/combined/combined_Class_counts.csv", sep =",", header =T)
+otu_genus.df <- read.table("Result_tables/combined/count_tables/combined_Genus_counts.csv", sep =",", header =T)
+otu_class.df <- read.table("Result_tables/combined/count_tables/combined_Class_counts.csv", sep =",", header =T)
 
 # Load data with metadata
 # otu_data.df <- read.csv("Result_tables/combined/combined_OTU_counts_abundances_and_metadata.csv",header = T)
-genus_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
-class_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+genus_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+class_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Class_counts_abundances_and_metadata.csv",header = T)
 
+# Add colours (since these are not generated for individual projects)
+# dim(genus_data.df)
+genus_data.df <- left_join(genus_data.df, metadata.df[c("Index",grep("colour", names(metadata.df), value =T))],
+          by = c("Sample" = "Index"))
+class_data.df <- left_join(class_data.df, metadata.df[c("Index",grep("colour", names(metadata.df), value =T))],
+                           by = c("Sample" = "Index"))
+# dim(genus_data.df)
 # Generate summary for each commodity + project
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,
                                                taxa_column = "taxonomy_genus",
@@ -120,6 +127,10 @@ length(unique(genus_taxa_summary.df$taxonomy_genus))
 genus_taxa_summary_filtered.df <- genus_taxa_summary.df %>% filter(Percent_group_samples > 10)
 length(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
 
+# length(unique(class_taxa_summary.df$taxonomy_class))
+class_taxa_summary_filtered.df <- class_taxa_summary.df %>% filter(Percent_group_samples > 10)
+# length(unique(class_taxa_summary_filtered.df$taxonomy_class))
+
 # Create matrix (also filter to rows of interest)
 otu_genus.m <- df2matrix(otu_genus.df)[unique(genus_taxa_summary_filtered.df$taxonomy_genus),]
 otu_class.m <- df2matrix(otu_class.df)[unique(class_taxa_summary_filtered.df$taxonomy_class),]
@@ -130,8 +141,10 @@ otu_genus.m <- otu_genus.m[,rownames(metadata.df)]
 otu_class.m <- otu_class.m[,rownames(metadata.df)]
 
 # Filter to those entries that have at least # counts in at least one sample
-otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m,1,max) >= 25,]
-otu_class_filtered.m <- otu_class.m[apply(otu_class.m,1,max) >= 25,]
+# dim(otu_genus.m)
+# otu_genus_filtered.m <- otu_genus.m[apply(otu_genus.m,1,max) >= 50,]
+# dim(otu_genus_filtered.m)
+# otu_class_filtered.m <- otu_class.m[apply(otu_class.m,1,max) >= 50,]
 
 # CLR transform
 otu_genus_clr.m <- clr(otu_genus_filtered.m)
@@ -203,23 +216,120 @@ otu_class_clr.m[which(otu_class_clr.m < 0)] <- 0
 # metadata_ordered.df <- metadata_ordered.df[order(metadata_ordered.df[[variable_to_plot]]),]
 # pca_site_scores <- pca_site_scores[rownames(metadata_ordered.df),]
 # ------------------------------------------------------------------
+# GENUS LEVEL
 
-
-# temp <- rda(t(otu_genus_clr.m[,samples]), data = metadata.df, scale = T) # ~1 makes it unconstrained
+# Generate ordination object
 # temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
 temp <- rda(t(otu_genus_clr.m), data = metadata.df)
-# temp <- rda(t(otu_class_clr.m), data = metadata.df)
-# temp <- rda(t(otu_genus_clr.m)~Commodity, data = metadata.df) # ~1 makes it unconstrained
 
+# ------------------------------------
+# Calculate correlations between abundances for each taxa from each sample and the PC1 and PC2
+# PC scores for each sample (site)
+pca_site_scores <- m2df(scores(temp, display = "sites"), "Sample")
+
+# Filter to taxonomy in pca object (because we have filtered)
+genus_abundance_pc_scores.df <- subset(genus_data.df, taxonomy_genus %in% rownames(otu_genus_clr.m))
+
+# Combine with existing metadata
+genus_abundance_pc_scores.df <- left_join(genus_abundance_pc_scores.df, pca_site_scores, by = "Sample")
+
+# Filter to columns of interest
+genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[,c("Sample", "study_accession", "Commodity", "Sample_type", "Sample_treatment","taxonomy_genus","Domain","Phylum","Class","Order","Family", "Genus","Relative_abundance", "PC1", "PC2", grep("colour", names(metadata.df),value = T))]
+
+# Filter out entries where there is no PC score
+genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[!is.na(genus_abundance_pc_scores.df$PC1),]
+
+genus_abundance_pc_scores.df$Relative_abundance <- genus_abundance_pc_scores.df$Relative_abundance*100
+
+# Calculate the correlation between the abundances for each taxa and the PC1 and PC2 scores
+genus_abundance_pc_correlations.df <- 
+  genus_abundance_pc_scores.df %>% 
+  group_by(taxonomy_genus) %>% summarise(Pearson_PC1 = cor(PC1, Relative_abundance, method = "pearson"),
+                                         Pearson_PC2 = cor(PC2, Relative_abundance, method = "pearson"),
+                                         Spearman_PC1 = cor(PC1, Relative_abundance, method = "spearman"),
+                                         Spearman_PC2 = cor(PC2, Relative_abundance, method = "spearman"), 
+                                         N_Samples = n_distinct(Sample),
+                                         N_Projects = n_distinct(study_accession)) %>% 
+  # filter(N_Samples > 5, N_Projects > 1) %>% 
+  filter(N_Samples >= 5) %>% 
+  arrange(desc(abs(Pearson_PC1))) %>%
+  as.data.frame()
+
+# Determine if any of the genera are in the top 10 for the commodity or a study
+commodity_genus_top_10_taxa <- unique(filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)$taxonomy_genus)
+commodity_study_genus_top_10_taxa <- unique(filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                              grouping_variables = c("Commodity","study_accession"),
+                                                              abundance_column = "Mean_relative_abundance",
+                                                              my_top_n = 10)$taxonomy_genus)
+genus_abundance_pc_correlations.df$In_top_10_for_Commodity <- "no"
+genus_abundance_pc_correlations.df$In_top_10_for_Commodity_accession <- "no"
+genus_abundance_pc_correlations.df[genus_abundance_pc_correlations.df$taxonomy_genus %in% commodity_genus_top_10_taxa,]$In_top_10_for_Commodity <- "yes"
+genus_abundance_pc_correlations.df[genus_abundance_pc_correlations.df$taxonomy_genus %in% commodity_study_genus_top_10_taxa,]$In_top_10_for_Commodity_accession <- "yes"
+
+# Write to file
+write.csv(genus_abundance_pc_correlations.df,"Result_tables/combined/ordination/Genus_relative_abundances_PC1_PC2_correlations.csv", quote = F, row.names = F)
+
+# Plot abundances against PC1 and PC2
+genus_abundance_pc_correlations_filtered.df <- genus_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC1) >= .7 | abs(Spearman_PC1) >= .7, In_top_10_for_Commodity_accession == "yes")
+# genus_abundance_pc_correlations_filtered.df <- genus_abundance_pc_correlations.df %>% filter(N_Samples >= 10, In_top_10_for_Commodity_accession == "yes")
+
+for (genus in unique(genus_abundance_pc_correlations_filtered.df$taxonomy_genus)){
+  data_subset <- subset(genus_abundance_pc_scores.df, taxonomy_genus == genus)
+  commodities.v <- setNames(as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity_colour),  as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity))
+  myplot <- ggplot(data_subset, aes(x = PC1, y = Relative_abundance, fill = Commodity, shape = Commodity)) +
+    geom_point(alpha = .8, size = 2) +
+    ggtitle(genus) + 
+    ylab("Relative abundance") +
+    scale_fill_manual(values = commodities.v) +
+    scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
+    # scale_y_continuous(breaks = seq(0,100,5), limits = c(0,100)) + 
+    scale_y_continuous(breaks = seq(0,100,5)) + 
+    scale_x_continuous(breaks = seq(-3.5,3.5,1), limits = c(-3.5,3.5)) + 
+    common_theme +
+    theme(plot.title = element_text(size = 4))
+  genus_splitted <- unlist(strsplit(genus,";"))
+  # out_name <- paste0(gsub(" ", "_", paste(genus_splitted[2], genus_splitted[3],genus_splitted[6], sep = "___")), "_PC1.pdf")
+  out_name <- paste0(gsub(";", "-", genus), "__PC1.pdf")
+  print(out_name)
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+}
+
+genus_abundance_pc_correlations_filtered.df <- genus_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC2) >= .7 | abs(Spearman_PC2) >= .7, In_top_10_for_Commodity_accession == "yes")
+for (genus in unique(genus_abundance_pc_correlations_filtered.df$taxonomy_genus)){
+  data_subset <- subset(genus_abundance_pc_scores.df, taxonomy_genus == genus)
+  commodities.v <- setNames(as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity_colour),  as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity))
+  myplot <- ggplot(data_subset, aes(x = PC2, y = Relative_abundance, fill = Commodity, shape = Commodity)) +
+    geom_point(alpha = .8, size = 2) +
+    ggtitle(genus) + 
+    ylab("Relative abundance") +
+    scale_fill_manual(values = commodities.v) +
+    scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
+    # scale_y_continuous(breaks = seq(0,100,5), limits = c(0,100)) + 
+    scale_y_continuous(breaks = seq(0,100,5)) + 
+    scale_x_continuous(breaks = seq(-3.5,3.5,1), limits = c(-3.5,3.5)) + 
+    common_theme +
+    theme(plot.title = element_text(size = 4))
+  genus_splitted <- unlist(strsplit(genus,";"))
+  # out_name <- paste0(gsub(" ", "_", paste(genus_splitted[2], genus_splitted[3],genus_splitted[6], sep = "___")), "_PC1.pdf")
+  out_name <- paste0(gsub(";", "-", genus), "__PC2.pdf")
+  print(out_name)
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+}
+
+# ------------------------------------
+# Generate ordination plots
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -5, legend_y = 4,
+             legend_x = -6, legend_y = 5,
              # legend_x = -2, legend_y = 2,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Commodity",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-5,4,-1,2),
+             limits = c(-6,4,-1,2),
              # limits = c(-2,2,-2,2),
              plot_spiders = F,
              plot_ellipses = F,
@@ -232,64 +342,17 @@ generate_pca(temp, mymetadata = metadata.df,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = T,
              # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_Commodity_pca.pdf"))
-# ------------------------------------------------
-# PC scores for each sample (site)
-pca_site_scores <- m2df(scores(temp, display = "sites"), "Sample")
+             filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.pdf"))
 
-# Filter to taxonomy in pca object
-genus_abundance_pc_scores.df <- subset(genus_data.df, taxonomy_genus %in% rownames(otu_genus_clr.m))
-
-# Combine with existing metadata
-genus_abundance_pc_scores.df <- left_join(genus_abundance_pc_scores.df, pca_site_scores, by = "Sample")
-
-# Filter to columns of interest
-genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[,c("Sample", "study_accession", "Commodity", "Sample_type", "Sample_treatment", "taxonomy_genus","Relative_abundance", "PC1", "PC2")]
-
-# Filter out entries where there is no PC score
-genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[!is.na(genus_abundance_pc_scores.df$PC1),]
-
-# Calculate the correlation between the abundances for each taxa and the PC1 and PC2 scores
-genus_abundance_pc_correlations.df <- 
-  genus_abundance_pc_scores.df %>% 
-  group_by(taxonomy_genus) %>% summarise(Pearson_PC1 = cor(PC1, Relative_abundance, method = "pearson"),
-                                         Pearson_PC2 = cor(PC2, Relative_abundance, method = "pearson"),
-                                         Spearman_PC1 = cor(PC1, Relative_abundance, method = "spearman"),
-                                         Spearman_PC2 = cor(PC2, Relative_abundance, method = "spearman"), 
-                                         N_Samples = n_distinct(Sample),
-                                         N_Projects = n_distinct(study_accession)) %>% 
-  # filter(N_Samples > 5, N_Projects > 1) %>% 
-  filter(N_Samples > 5) %>% 
-  arrange(desc(abs(Pearson_PC1))) %>%
-  as.data.frame()
-# plot(genus_abundance_pc_correlations.df$Pearson_PC1, genus_abundance_pc_correlations.df$Spearman_PC1)
-
-genus_abundance_pc_scores.df <- genus_abundance_pc_scores.df[genus_abundance_pc_scores.df$taxonomy_genus %in% 
-                                                               subset(genus_abundance_pc_correlations.df, abs(Pearson_PC2) > .6)$taxonomy_genus,]
-genus_abundance_pc_scores.df$Relative_abundance <- genus_abundance_pc_scores.df$Relative_abundance*100
-max(genus_abundance_pc_scores.df$Relative_abundance)
-ggplot(genus_abundance_pc_scores.df, aes(x = PC2, y = Relative_abundance, color = Commodity, shape = Commodity)) + 
-  geom_point() +
-  scale_colour_manual(values = my_colour_palette_10_distinct) +
-  scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
-  common_theme + facet_wrap(~taxonomy_genus, scales = "free_y")
-# theme(legend.position = "none") 
-# ------------------------------------------------
-
-pca_specie_scores <- scores(temp, display = "species")
-pca_percentages <- (temp$CA$eig/sum(temp$CA$eig)) * 100
-
-spec_scores <- melt(pca_specie_scores)
-length(unique(spec_scores$Var1))
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -5, legend_y = 4,
+             legend_x = -6, legend_y = 5,
              point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
              legend_title = "Sample type",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-5,4,-1,2),
+             limits = c(-6,4,-1,2),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -301,17 +364,17 @@ generate_pca(temp, mymetadata = metadata.df,
              variable_to_plot = "Sample_type", legend_cols = 1,
              variable_colours_available = F,
              # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_Sample_type_pca.pdf"))
+             filename = paste0("Result_figures/combined/ordination/Sample_type_genus_pca.pdf"))
 
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -5, legend_y = 4,
+             legend_x = -6, legend_y = 5,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Sample treatment",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-5,4,-1,2),
+             limits = c(-6,4,-1,2),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -323,18 +386,18 @@ generate_pca(temp, mymetadata = metadata.df,
              variable_to_plot = "Sample_treatment", legend_cols = 1,
              variable_colours_available = F,
              # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_Sample_treatment_pca.pdf"))
+             filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.pdf"))
 
 
 
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -5, legend_y = 4,
+             legend_x = -6, legend_y = 5,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Study accession",
              legend_cex = .4,
              plot_title = "",
-             limits = c(-5,4,-1,2),
+             limits = c(-6,4,-1,2),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -346,31 +409,9 @@ generate_pca(temp, mymetadata = metadata.df,
              variable_to_plot = "study_accession", legend_cols = 2,
              variable_colours_available = F,
              # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_study_accession_pca.pdf"))
+             filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.pdf"))
 
 
-
-temp <- rda(t(otu_genus_clr.m)~study_accession, data = metadata.df, scale = T)
-generate_pca(temp, mymetadata = metadata.df,
-             plot_height = 5, plot_width = 5,
-             legend_x = -5, legend_y = 4,
-             point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
-             legend_title = "Commodity",
-             legend_cex = .5,
-             plot_title = "",
-             limits = c(-5,4,0,2),
-             plot_spiders = F,
-             plot_ellipses = F,
-             plot_hulls = F,
-             use_shapes = T,
-             ellipse_border_width = .5,
-             include_legend = T,
-             label_ellipse = F, ellipse_label_size = .5,
-             colour_palette = my_colour_palette_15,
-             variable_to_plot = "Commodity", legend_cols = 1,
-             variable_colours_available = F,
-             # my_levels = c(""),
-             filename = paste0("Result_figures/combined/combined_Commodity_rda_constrained_study_accession.pdf"))
 
 
 run_permanova_custom <- function(my_metadata, my_formula){

@@ -49,7 +49,7 @@ my_colour_palette_10_soft <- c("#9E788F","#4C5B61","#678D58","#AD5233","#A0A083"
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
@@ -63,18 +63,19 @@ metadata.df$Sample_type <- factor(metadata.df$Sample_type)
 metadata.df$Sample_treatment <- factor(metadata.df$Sample_treatment)
 
 # Load relative abundance matrices
-otu_genus_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Genus_relative_abundances.csv", sep = ",", header = T, row.names = 1))
-otu_class_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Class_relative_abundances.csv", sep = ",", header = T, row.names = 1))
-otu_phylum_rel.m <- as.matrix(read.table(file = "Result_tables/combined/combined_Phylum_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_genus_rel.m <- as.matrix(read.table(file = "Result_tables/combined/relative_abundance_tables/combined_Genus_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_class_rel.m <- as.matrix(read.table(file = "Result_tables/combined/relative_abundance_tables/combined_Class_relative_abundances.csv", sep = ",", header = T, row.names = 1))
+otu_phylum_rel.m <- as.matrix(read.table(file = "Result_tables/combined/relative_abundance_tables/combined_Phylum_relative_abundances.csv", sep = ",", header = T, row.names = 1))
 
 # Cleanup column (sample) names - Relative abundance matrices
 colnames(otu_genus_rel.m) <- gsub("_J.*", "", colnames(otu_genus_rel.m))
 colnames(otu_class_rel.m) <- gsub("_J.*", "", colnames(otu_class_rel.m))
 colnames(otu_phylum_rel.m) <- gsub("_J.*", "", colnames(otu_phylum_rel.m))
 
-# and correct metadata
+# And correct metadata
 rownames(metadata.df) <- gsub("_J.*", "", rownames(metadata.df))
 metadata.df$Index <- gsub("_J.*", "", metadata.df$Index)
+
 
 
 # Since we likely removed samples from the count matrix
@@ -111,7 +112,7 @@ discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_acce
 # FULL HEATMAPS
 make_heatmap(otu_phylum_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined/phylum_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/heatmaps/phylum_relative_abundance_heatmap.pdf"),
              variables = discrete_variables,
              plot_height = 8,
              plot_width = 120,
@@ -125,7 +126,7 @@ make_heatmap(otu_phylum_rel.m*100,
 
 make_heatmap(otu_class_rel.m*100, 
              mymetadata = metadata.df,
-             filename = paste0("Result_figures/combined/class_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/heatmaps/class_relative_abundance_heatmap.pdf"),
              variables = discrete_variables,
              plot_height = 20,
              plot_width = 120,
@@ -140,7 +141,7 @@ make_heatmap(otu_class_rel.m*100,
 
 # --------------------------------------------------------
 # CLASS LEVEL
-class_data.df <- read.csv("Result_tables/combined/combined_Class_counts_abundances_and_metadata.csv",header = T)
+class_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Class_counts_abundances_and_metadata.csv",header = T)
 
 # Remove unknown commodities
 class_data.df <- subset(class_data.df, Commodity != "Unknown")
@@ -153,7 +154,7 @@ class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_t
                                                           grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance",
                                                           my_top_n = 10)
-write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity_study_accession.csv",row.names = F, quote = F)
+write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_study_accession_class_top_10.csv",row.names = F, quote = F)
 
 # Generate matrix for heatmap
 heatmap.m <- class_taxa_summary.df[c("study_accession", "taxonomy_class","Mean_relative_abundance")]
@@ -167,7 +168,7 @@ rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
-             filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_mean_relative_abundance_heatmap.pdf"),
              variables = c("Commodity","Sample_type","Sample_treatment"),
              column_title = "Study accession",
              plot_height = 7,
@@ -209,7 +210,7 @@ make_heatmap(heatmap.m*100,
 
 class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
 class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_class_Commodity.csv",row.names = F, quote = F)
+write.csv(class_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_class_top_10.csv",row.names = F, quote = F)
 
 heatmap.m <- class_taxa_summary.df[c("Commodity", "taxonomy_class","Mean_relative_abundance")]
 heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
@@ -222,7 +223,7 @@ rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
 
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
-             filename = paste0("Result_figures/combined/top_10_class_per_commodity_mean_relative_abundance.pdf"),
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_class_top_10_mean_relative_abundance_heatmap.pdf"),
              variables = c("Commodity"),
              column_title = "Commodity",
              plot_height = 5,
@@ -242,10 +243,14 @@ make_heatmap(heatmap.m*100,
 )
 
 # ---------------------------------------------------------------------------
-# Make heatmaps for top taxa, using mean abundance
+# GENUS LEVEL
 
 # Get the top 10 taxa per project and just show those in the plot
-genus_data.df <- read.csv("Result_tables/combined/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+genus_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+
+# Remove unknown commodities
+genus_data.df <- subset(genus_data.df, Commodity != "Unknown")
+
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,
                                                taxa_column = "taxonomy_genus",
                                                group_by_columns = c("Commodity", "study_accession"))
@@ -253,31 +258,34 @@ genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,
 genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
                                                           grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance",
-                                                          my_top_n = 5)
-# write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_genus_Commodity_study_accession.csv",row.names = F, quote = F)
+                                                          my_top_n = 10)
+write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_study_accession_genus_top_10.csv",row.names = F, quote = F)
 
-temp <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
-temp <- temp[temp$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
-temp <- temp %>% spread(study_accession, Mean_relative_abundance,fill = 0)
-temp <- df2matrix(temp)
-temp_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession"), drop = F])
-rownames(temp_metadata.df) <- temp_metadata.df$study_accession
+heatmap.m <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+heatmap.m <- df2matrix(heatmap.m)
 
-make_heatmap(temp*100, 
-             mymetadata = temp_metadata.df,
-             filename = paste0("Result_figures/combined/top_5_genus_per_accession_mean_relative_abundance.pdf"),
-             variables = c("Commodity"),
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_genus_top_10_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment"),
              column_title = "Study accession",
-             plot_height = 15,
-             plot_width = 12,
+             plot_height = 30,
+             plot_width = 24,
              cluster_columns = T,
              cluster_rows = T,
              column_title_size = 10,
              row_title_size = 10,
-             
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Mean relative abundance %",
-             palette_choice = 'purple'
+             palette_choice = 'purple',
+             row_dend_width = unit(25, "cm")
 )
 
 # -----------
@@ -286,54 +294,64 @@ genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_colum
 genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
                                                           grouping_variables = c("Commodity"),
                                                           abundance_column = "Mean_relative_abundance",
-                                                          my_top_n = 5)
-# write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_genus_Commodity.csv",row.names = F, quote = F)
+                                                          my_top_n = 10)
+write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_genus_top_10.csv",row.names = F, quote = F)
 
-temp <- genus_taxa_summary.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
-temp <- temp[temp$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
-temp <- temp %>% spread(Commodity, Mean_relative_abundance,fill = 0)
-temp <- df2matrix(temp)
-temp_metadata.df <- unique(metadata.df[,c("Commodity"), drop = F])
-rownames(temp_metadata.df) <- temp_metadata.df$Commodity
+heatmap.m <- genus_taxa_summary.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "Commodity_colour"), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
 
-
-make_heatmap(temp*100, 
-             mymetadata = temp_metadata.df,
-             filename = paste0("Result_figures/combined/top_5_genus_per_Commodity_mean_relative_abundance.pdf"),
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_genus_top_10_mean_relative_abundance_heatmap.pdf"),
              variables = c("Commodity"),
-             plot_height = 7,
-             plot_width = 8,
-             heatmap_width = 10,
+             plot_height = 12,
+             plot_width = 9.5,
              cluster_columns = T,
              cluster_rows = T,
              column_title_size = 10,
              annotation_name_size = 0,
              row_title_size = 10,
-             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Mean relative abundance %",
-             palette_choice = 'purple'
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
 )
+
+# Just Genera in Gammaproteobacteria and Alphaproteobacteria 
+
+
 # ---------------------------------------------------
+# FAMILY LEVEL
+family_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Family_counts_abundances_and_metadata.csv",header = T)
 
+# Remove unknown commodities
+family_data.df <- subset(family_data.df, Commodity != "Unknown")
 
-
-family_data.df <- read.csv("Result_tables/combined/combined_Family_counts_abundances_and_metadata.csv",header = T)
 family_taxa_summary.df <- generate_taxa_summary(mydata = family_data.df,taxa_column = "taxonomy_family",group_by_columns = c("Commodity", "study_accession"))
 family_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = family_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(family_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_family_Commodity_study_accession.csv",row.names = F, quote = F)
+write.csv(family_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_study_accession_family_top_10.csv",row.names = F, quote = F)
 
 family_taxa_summary.df <- generate_taxa_summary(mydata = family_data.df,taxa_column = "taxonomy_family",group_by_columns = c("Commodity"))
 family_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = family_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(family_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_family_Commodity.csv",row.names = F, quote = F)
-
+write.csv(family_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_family_top_10.csv",row.names = F, quote = F)
 
 # --------
+# PHYLUM LEVEL
+phylum_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Phylum_counts_abundances_and_metadata.csv",header = T)
 
-phylum_data.df <- read.csv("Result_tables/combined/combined_Phylum_counts_abundances_and_metadata.csv",header = T)
+# Remove unknown commodities
+phylum_data.df <- subset(phylum_data.df, Commodity != "Unknown")
+
 phylum_taxa_summary.df <- generate_taxa_summary(mydata = phylum_data.df,taxa_column = "taxonomy_phylum",group_by_columns = c("Commodity", "study_accession"))
 phylum_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = phylum_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_phylum_Commodity_study_accession.csv",row.names = F, quote = F)
+write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_study_accession_phylum_top_10.csv",row.names = F, quote = F)
 
 phylum_taxa_summary.df <- generate_taxa_summary(mydata = phylum_data.df,taxa_column = "taxonomy_phylum",group_by_columns = c("Commodity"))
 phylum_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = phylum_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
-write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/combined_top_10_phylum_Commodity.csv",row.names = F, quote = F)
+write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_phylum_top_10.csv",row.names = F, quote = F)
