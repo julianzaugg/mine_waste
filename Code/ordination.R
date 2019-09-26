@@ -146,6 +146,9 @@ otu_class.m <- otu_class.m[,rownames(metadata.df)]
 # dim(otu_genus_filtered.m)
 # otu_class_filtered.m <- otu_class.m[apply(otu_class.m,1,max) >= 50,]
 
+
+# otu_genus.m <- otu_genus.m + 10
+
 # CLR transform
 otu_genus_clr.m <- clr(otu_genus_filtered.m)
 otu_class_clr.m <- clr(otu_class_filtered.m)
@@ -321,6 +324,37 @@ for (genus in unique(genus_abundance_pc_correlations_filtered.df$taxonomy_genus)
 
 # ------------------------------------
 # Generate ordination plots
+# my_scores <- scores(temp, display = "species")
+# get top 
+# left_pc1.v <- names(sort(PCA.res$rotation[,compA]))[1:num_top_vars_to_label]
+# right_pc1.v <- names(sort(PCA.res$rotation[,compA]))[(length(PCA.res$rotation[,compA]) - num_top_vars_to_label):length(PCA.res$rotation[,compA])]
+# 
+# num_species <- 5
+# left_pc1.v <- rownames(my_scores[order(my_scores[,1]),][1:num_species,])
+# right_pc1.v <- rownames(my_scores[order(my_scores[,1]),][(length(my_scores[,1]) - num_species):length(my_scores[,1]),])
+# 
+# left_pc2.v <- rownames(my_scores[order(my_scores[,2]),][1:num_species,])
+# right_pc2.v <- rownames(my_scores[order(my_scores[,2]),][(length(my_scores[,2]) - num_species):length(my_scores[,2]),])
+# 
+# top_vars.v <- unique(c(left_pc1.v, right_pc1.v, left_pc2.v, right_pc2.v))
+# 
+# len <- 1
+# plot(temp,display=c('sites', "species"),scaling = 3)
+# my_scores[top_vars.v,1]
+# arrows(0,0, len *my_scores[top_vars.v,1], len *my_scores[top_vars.v,2], length =0.05, col = alpha("darkcyan", .3))
+# text()
+
+source("Code/helper_functions.R")
+
+my_relabeller_function <- function(my_labels){
+  unlist(lapply(my_labels, 
+                function(x) {
+                  phylostring <- unlist(strsplit(x, split = ";"))
+                  # paste(phylostring[2],phylostring[3], phylostring[6], sep = ";")
+                  paste(phylostring[3], phylostring[6], sep = ";")
+                }))
+}
+
 generate_pca(temp, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
              legend_x = -6, legend_y = 5,
@@ -341,7 +375,9 @@ generate_pca(temp, mymetadata = metadata.df,
              colour_palette = my_colour_palette_15,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = T,
-             # my_levels = c(""),
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .3,arrow_label_colour = "grey20", 
+             specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.pdf"))
 
 
@@ -413,6 +449,23 @@ generate_pca(temp, mymetadata = metadata.df,
 
 
 
+################################################
+# Now we can perform statistical analysis
+# The first thing we need to do is to determine from the variables, which one to include in our model.
+# It is possible that some of the variables correlate with each other! (collinear?)
+discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_accession")
+# m0 <- rda(t(otu_genus_clr.m) ~ 1, metadata.df[discrete_variables]) # unconstrained model
+# m1 <- rda(t(otu_genus_clr.m) ~ ., metadata.df[discrete_variables]) # Maximally constrained model
+# Chooses a model by AIC in a stepwise fashion by gradually adding variables, unconstrained -> Maximally constrained 
+
+# step(m0, scope = formula(m1), test = "perm", steps = 1000)
+# ordistep(m0,  scope = formula(m1), permutations = 1000)
+# step(m1, scope = list(lower = formula(m0), upper = formula(m1)), trace = T)  # for reverse, just for illustration that it is different
+
+
+#### PERMANOVA
+# ANOSIM tests whether distances between groups are greater than within groups.
+# PERMANOVA tests whether distance differ between groups.
 
 run_permanova_custom <- function(my_metadata, my_formula){
   stat_sig_table <- NULL
@@ -434,11 +487,57 @@ run_permanova_custom <- function(my_metadata, my_formula){
                                                        R2,
                                                        p_value))
   }
+  print(paste0("FORMULA: ", as.character(my_formula)[2], as.character(my_formula)[1], as.character(my_formula)[3]))
   print(result)
   names(stat_sig_table) <- c("Term","Df", "SumOfSqs","MeanSqs","F.Model","R2","Pr(>F)")
   stat_sig_table <- stat_sig_table[order(stat_sig_table$"Pr(>F)"),]
   stat_sig_table
 }
+# It is possible that the metadata and input matrix need to be in the same order!
+# ord <- dbrda(t(otu_genus_clr.m) ~ Commodity + study_accession, data = metadata.df, dist = 'bray')
+# generate_pca(ord, mymetadata = metadata.df, variable_to_plot = "Commodity", colour_palette = my_colour_palette_20, variable_colours_available = T, point_alpha = .5)
+# anova(ord, by = 'margin',parallel = 2,permutations = 100)
+# ord <- dbrda(t(otu_genus_clr.m) ~ study_accession+Commodity, data = metadata.df, dist = 'bray')
+# anova(ord, by = 'margin',parallel = 2,permutations = 100)
 
 permanova_results <- run_permanova_custom(my_metadata = metadata.df,
-                                          my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Commodity:study_accession))
+                                          my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Sample_treatment+Sample_type))
+
+permanova_results <- run_permanova_custom(my_metadata = metadata.df,
+                                          my_formula = as.formula(t(otu_genus_clr.m)~study_accession+Sample_treatment+Sample_type+Commodity))
+
+permanova_results <- run_permanova_custom(my_metadata = metadata.df,
+                                          my_formula = as.formula(t(otu_genus_clr.m)~Sample_treatment+Sample_type+Commodity+study_accession))
+
+permanova_results <- run_permanova_custom(my_metadata = metadata.df,
+                                          my_formula = as.formula(t(otu_genus_clr.m)~Sample_type+Commodity+study_accession+Sample_treatment))
+
+
+betadisper(t(otu_genus_clr.m),)
+
+# ---------------------------------------------
+# Takes awhile to calculate, uncomment to run
+
+# Calculate the beta-diversity for each variable 
+# Centre-log transform the counts first and use a euclidean distance. This should be equivalent or superior to 
+# a bray curtis transform/distance used on counts. 
+# As far as I can tell in the literature, the euclidean distance between CLR values is an appropriate beta diversity measure
+
+
+beta_diversity_significances <- data.frame("Variable" = character(),
+                                           "P_value" = numeric(),
+                                           "R_value" = numeric()
+)
+for (myvar in c("Commodity", "Sample_type", "Sample_treatment", "study_accession")){
+# for (myvar in c("Commodity")){
+  metadata_subset.df <- metadata.df[!is.na(metadata.df[,myvar]),]
+  otu_rare_subset.m <- otu_genus_clr.m[,rownames(metadata_subset.df)]
+  # print(myvar)
+  temp <- with(metadata_subset.df, anosim(t(clr(otu_rare_subset.m)),get(myvar), distance = "euclidean",permutations = 999,parallel = 2))
+  beta_diversity_significances <- rbind(beta_diversity_significances, data.frame("Variable" = myvar,
+                                                                                 "P_value" = temp$signif,
+                                                                                 "R_value" = temp$statistic))
+}
+beta_diversity_significances$padj <- round(p.adjust(beta_diversity_significances$P_value,method = "BH"),6)
+# write.csv(beta_diversity_significances, file = "Result_tables/combined/diversity_analysis/variable_beta_diversity_significance.csv", row.names = F, quote = F)
+

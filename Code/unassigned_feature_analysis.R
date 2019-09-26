@@ -29,17 +29,18 @@ library(cowplot)
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
 # Load the processed metadata
-metadata.df <- read.csv("Result_tables/combined/combined_processed_metadata.csv", sep =",", header = T)
+metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
 # Load abundance data
-feature_abundances.df <- read.csv("Result_tables/combined/combined_most_abundant_unassigned.csv", header = T)
+feature_abundances.df <- read.csv("Result_tables/combined/other/combined_most_abundant_unassigned.csv", header = T)
+
 feature_abundances.df <- feature_abundances.df[feature_abundances.df$Sample %in% metadata.df$Index,]
 
 # Load blast results
-top_blast_hits.df <- read.table("Data/unassigned_blast_final.tsv", sep = "\t", header = T)
+top_blast_hits.df <- read.table("Data/blast_final.tsv", sep = "\t", header = T)
 top_blast_hits.df <- top_blast_hits.df[c("query_id","subject_id","subject_scientific_name","Taxonomy")]
 
 # species	name of a species (coincide with organism name for species-level nodes)

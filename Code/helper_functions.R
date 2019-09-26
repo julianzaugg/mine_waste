@@ -137,11 +137,16 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
                          legend_cex = 0.6,
                          plot_spiders = NULL, plot_ellipses = NULL,plot_hulls = NULL, legend_cols = 2, legend_title = NULL,
                          label_ellipse = F, ellipse_label_size = 0.5, ellipse_border_width = 1,variable_colours_available = F, 
-                         plot_title = NULL, use_shapes = F, my_levels = NULL){
+                         plot_title = NULL, use_shapes = F, my_levels = NULL,
+                         plot_arrows = F, arrow_colour = "black", arrow_alpha = 1,
+                         label_arrows=T,arrow_label_size = .5, num_top_species = 5, arrow_scalar = 1,
+                         arrow_label_colour = "black", arrow_thickness = .2,
+                         specie_labeller_function = NULL){
   pca.scores <- try(scores(pca_object, choices=c(1,2,3)))
   if(inherits(pca.scores, "try-error")) {
     return()
   }
+  
   # Get component x,y coordinates
   pca_site_scores <- scores(pca_object, display = "sites")
   pca_specie_scores <- scores(pca_object, display = "species")
@@ -269,6 +274,62 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
          # col = alpha("black",point_alpha),
          bg = alpha(all_sample_colours, point_alpha),
   )
+  
+  # Plot arrows for species / variables
+  plot_arrows_func <- function(){
+    
+    left_pc1.v <- rownames(pca_specie_scores[order(pca_specie_scores[,1]),][1:num_top_species,])
+    right_pc1.v <- rownames(pca_specie_scores[order(pca_specie_scores[,1]),][(length(my_scores[,1]) - num_top_species):length(my_scores[,1]),])
+    
+    left_pc2.v <- rownames(pca_specie_scores[order(pca_specie_scores[,2]),][1:num_top_species,])
+    right_pc2.v <- rownames(pca_specie_scores[order(pca_specie_scores[,2]),][(length(my_scores[,2]) - num_top_species):length(my_scores[,2]),])
+    
+    top_vars.v <- unique(c(left_pc1.v, right_pc1.v, left_pc2.v, right_pc2.v))
+    arrows(0,0, 
+           arrow_scalar *my_scores[top_vars.v,1], 
+           arrow_scalar *my_scores[top_vars.v,2], 
+           length =0.05, 
+           col = alpha(arrow_colour, arrow_alpha),
+           lwd = arrow_thickness)
+    
+    if (label_arrows){
+      if (!is.null(specie_labeller_function)){
+        # text(x = my_scores[top_vars.v,1],
+        #      y = my_scores[top_vars.v,2],
+        #      labels = specie_labeller_function(top_vars.v),
+        #      cex = .5,
+        #      pos = sample(c(1,2,3,4),1))
+        for (tv in top_vars.v){
+          text(x = my_scores[tv,1],
+               y = my_scores[tv,2],
+               labels = specie_labeller_function(tv),
+               cex = arrow_label_size,
+               # Values of 1, 2, 3 and 4, respectively indicate positions below, 
+               # to the left of, above and to the right of the specified (x,y) coordinates.
+               pos = sample(c(1,2,3,4),1),
+               offset = 1,
+               col = alpha(arrow_label_colour,1))
+          }
+      } else{
+        for (tv in top_vars.v){
+          text(x = my_scores[tv,1],
+               y = my_scores[tv,2],
+               labels = tv,
+               cex = arrow_label_size,
+               # Values of 1, 2, 3 and 4, respectively indicate positions below, 
+               # to the left of, above and to the right of the specified (x,y) coordinates.
+               pos = sample(c(1,2,3,4),1),
+               offset = 1,
+               col = alpha(arrow_label_colour,1))
+        }
+      }
+    }
+
+
+  }
+  if (plot_arrows == T){
+    plot_arrows_func()
+  }
   
   # Plot ellipses that are filled
   plot_ellipses_func <- function () {
@@ -460,6 +521,8 @@ make_heatmap <- function(myheatmap_matrix,
                          row_title = "Taxa",
                          legend_labels = NULL,
                          my_annotation_palette = NULL,
+                         discrete_legend = FALSE, # Whether or not to display continuous legend as discrete
+                         simple_anno_size = unit(.5, "cm"), # size of annotations
                          ...
 ){
   
@@ -510,12 +573,16 @@ make_heatmap <- function(myheatmap_matrix,
     colour_lists[[myvar]] <- named_colour_list
   }
   
+  # Appearance of the column annotations
   ha <- HeatmapAnnotation(df = metadata_just_variables,
                           which = "column",
                           col = colour_lists,
                           gp = gpar(col = "black",lwd =.2),
                           gap = unit(.1,"cm"),
                           show_annotation_name = T,
+                          # annotation_legend_param, # ?color_mapping_legend for options
+                          show_legend = T,
+                          simple_anno_size = simple_anno_size,
                           annotation_name_gp = gpar(fontsize = annotation_name_size))
   
   if (is.null(my_palette)){
@@ -603,24 +670,32 @@ make_heatmap <- function(myheatmap_matrix,
   } else{
     my_labels <- legend_labels
   }
-  hm_legend <- Legend(col_fun = col_fun,
-                      labels = my_labels,
-                      at = internal_breaks,
-                      labels_gp = gpar(fontsize = 6),
-                      
-                      title_position = "leftcenter-rot",
-                      title_gp = gpar(fontsize = 6),
-                      # grid_width= unit(.1, "cm"),
-                      # title = "Relative abundance (%)",
-                      title = legend_title,
-                      # legend_height = unit(7,"cm"),
-                      # title_gp = gpar(fontsize = 10),
-                      direction = "vertical",
-                      # title_position = "topcenter",
-                      border = "black",
-                      # legend_width = unit(7,"cm"),
-                      
-  )
+  if (discrete_legend == TRUE){
+    hm_legend <- Legend(
+      labels = rev(my_labels),
+      at = internal_breaks,
+      labels_gp = gpar(fontsize = 6),
+      legend_gp = gpar(fill = rev(col_fun(internal_breaks))), # For discrete
+      title_position = "leftcenter-rot",
+      title_gp = gpar(fontsize = 6),
+      title = legend_title,
+      direction = "vertical",
+      border = "black"
+    )
+  } else{
+    hm_legend <- Legend(
+      col_fun = col_fun, # For continuous
+      labels = my_labels,
+      at = internal_breaks,
+      labels_gp = gpar(fontsize = 6),
+      title_position = "leftcenter-rot",
+      title_gp = gpar(fontsize = 6),
+      title = legend_title,
+      direction = "vertical",
+      border = "black",
+      
+    )
+  }
   
   pdf(filename,height=plot_height,width=plot_width)
   draw(hm, annotation_legend_list = c(hm_legend))
