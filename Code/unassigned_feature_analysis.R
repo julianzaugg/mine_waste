@@ -40,7 +40,8 @@ feature_abundances.df <- read.csv("Result_tables/combined/other/combined_most_ab
 feature_abundances.df <- feature_abundances.df[feature_abundances.df$Sample %in% metadata.df$Index,]
 
 # Load blast results
-top_blast_hits.df <- read.table("Data/blast_final.tsv", sep = "\t", header = T)
+# May need to manually fix file to remove bad characters, e.g. '#'
+top_blast_hits.df <- read.table("Data/blast_final.tsv", sep = "\t", header = T) 
 top_blast_hits.df <- top_blast_hits.df[c("query_id","subject_id","subject_scientific_name","Taxonomy")]
 
 # species	name of a species (coincide with organism name for species-level nodes)
@@ -75,7 +76,7 @@ full_table.df <- left_join(full_table.df, top_blast_hits.df, by = c("OTU.ID" = "
 full_table.df$study_accession.y <- NULL
 names(full_table.df)[names(full_table.df) == "study_accession.x"] <- "study_accession"
 full_table.df <- full_table.df[!is.na(full_table.df$Taxonomy),]
-write.csv(full_table.df, file = "Result_tables/blast_results.csv", quote = F, row.names = F)
+write.csv(full_table.df, file = "Result_tables/combined/unassigned_blast_results_processed.csv", quote = F, row.names = F)
 # full_table.df %>% select(-instrument_platform)
 # OTU.ID
 # Sample

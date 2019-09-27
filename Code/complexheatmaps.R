@@ -343,6 +343,46 @@ make_heatmap(heatmap.m*100,
 
 # ------------------------------------------------------------------------
 # Just Genera in c__Gammaproteobacteria and c__Alphaproteobacteria
+genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity","study_accession"))
+genus_taxa_summary.df <- genus_taxa_summary.df %>% filter(grepl("c__Gammaproteobacteria|c__Alphaproteobacteria", taxonomy_genus))
+
+genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+
+heatmap.m <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+heatmap.m <- df2matrix(heatmap.m)
+
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_study_accession_top_10_Gammaproteobacteria_and_Alphaproteobacteria_genus_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment"),
+             column_title = "Study accession",
+             row_title = "Genus",
+             plot_height = 18,
+             plot_width = 15,
+             cluster_columns = F,
+             cluster_rows = T,
+             column_title_size = 10,
+             annotation_name_size = 10,
+             row_title_size = 10,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
+
+
+# ---
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity"))
 genus_taxa_summary.df <- genus_taxa_summary.df %>% filter(grepl("c__Gammaproteobacteria|c__Alphaproteobacteria", taxonomy_genus))
 genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
@@ -350,7 +390,6 @@ genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_t
                                                           abundance_column = "Mean_relative_abundance",
                                                           my_top_n = 10)
 
-# write.csv(genus_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_genus_top_10.csv",row.names = F, quote = F)
 heatmap.m <- genus_taxa_summary.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
 heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
 heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)

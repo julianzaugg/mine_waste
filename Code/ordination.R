@@ -223,12 +223,17 @@ otu_class_clr.m[which(otu_class_clr.m < 0)] <- 0
 
 # Generate ordination object
 # temp <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
-temp <- rda(t(otu_genus_clr.m), data = metadata.df)
+genus_pca <- rda(t(otu_genus_clr.m), data = metadata.df)
 
 # ------------------------------------
 # Calculate correlations between abundances for each taxa from each sample and the PC1 and PC2
 # PC scores for each sample (site)
-pca_site_scores <- m2df(scores(temp, display = "sites"), "Sample")
+genus_pca_site_scores <- m2df(scores(genus_pca, display = "sites"), "Sample") # These will be scaled scores!
+genus_pca_species_scores <- m2df(scores(genus_pca, display = "species"), "taxonomy_genus") # These will be scaled scores!
+
+# Calculate the percentage contribution from each species. Requires unscaled values that are squared
+pc1_contribution <- melt(round(100*scores(genus_pca, display = "species", scaling = 0)[,1]^2, 3),value.name = "PC1_contribution_percentage")
+pc2_contribution <- melt(round(100*scores(genus_pca, display = "species", scaling = 0)[,2]^2, 3),value.name = "PC2_contribution_percentage")
 
 # Filter to taxonomy in pca object (because we have filtered)
 genus_abundance_pc_scores.df <- subset(genus_data.df, taxonomy_genus %in% rownames(otu_genus_clr.m))
@@ -258,6 +263,13 @@ genus_abundance_pc_correlations.df <-
   arrange(desc(abs(Pearson_PC1))) %>%
   as.data.frame()
 
+genus_abundance_pc_correlations.df <- left_join(genus_abundance_pc_correlations.df, genus_pca_species_scores, by = "taxonomy_genus")
+
+# Add percentage contributions
+genus_abundance_pc_correlations.df$PC1_contribution_percentage <- as.numeric(lapply(genus_abundance_pc_correlations.df$taxonomy_genus,  function(x) pc1_contribution[x,]))
+genus_abundance_pc_correlations.df$PC2_contribution_percentage <- as.numeric(lapply(genus_abundance_pc_correlations.df$taxonomy_genus,  function(x) pc2_contribution[x,]))
+
+
 # Determine if any of the genera are in the top 10 for the commodity or a study
 commodity_genus_top_10_taxa <- unique(filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
                                                           grouping_variables = c("Commodity"),
@@ -273,7 +285,7 @@ genus_abundance_pc_correlations.df[genus_abundance_pc_correlations.df$taxonomy_g
 genus_abundance_pc_correlations.df[genus_abundance_pc_correlations.df$taxonomy_genus %in% commodity_study_genus_top_10_taxa,]$In_top_10_for_Commodity_accession <- "yes"
 
 # Write to file
-write.csv(genus_abundance_pc_correlations.df,"Result_tables/combined/ordination/Genus_relative_abundances_PC1_PC2_correlations.csv", quote = F, row.names = F)
+write.csv(genus_abundance_pc_correlations.df,"Result_tables/combined/ordination/Genus_relative_abundances_PC1_PC2_correlations_contributions.csv", quote = F, row.names = F)
 
 # Plot abundances against PC1 and PC2
 genus_abundance_pc_correlations_filtered.df <- genus_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC1) >= .7 | abs(Spearman_PC1) >= .7, In_top_10_for_Commodity_accession == "yes")
@@ -297,7 +309,7 @@ for (genus in unique(genus_abundance_pc_correlations_filtered.df$taxonomy_genus)
   # out_name <- paste0(gsub(" ", "_", paste(genus_splitted[2], genus_splitted[3],genus_splitted[6], sep = "___")), "_PC1.pdf")
   out_name <- paste0(gsub(";", "-", genus), "__PC1.pdf")
   print(out_name)
-  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/Genus/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
 }
 
 genus_abundance_pc_correlations_filtered.df <- genus_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC2) >= .7 | abs(Spearman_PC2) >= .7, In_top_10_for_Commodity_accession == "yes")
@@ -319,11 +331,16 @@ for (genus in unique(genus_abundance_pc_correlations_filtered.df$taxonomy_genus)
   # out_name <- paste0(gsub(" ", "_", paste(genus_splitted[2], genus_splitted[3],genus_splitted[6], sep = "___")), "_PC1.pdf")
   out_name <- paste0(gsub(";", "-", genus), "__PC2.pdf")
   print(out_name)
-  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/Genus/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
 }
 
 # ------------------------------------
 # Generate ordination plots
+# plot(0,
+#      type='n', col = "red",ann=FALSE,xlim = c(0,5))
+# plot.new()
+# box(lty = 1)
+
 # my_scores <- scores(temp, display = "species")
 # get top 
 # left_pc1.v <- names(sort(PCA.res$rotation[,compA]))[1:num_top_vars_to_label]
@@ -355,15 +372,15 @@ my_relabeller_function <- function(my_labels){
                 }))
 }
 
-generate_pca(temp, mymetadata = metadata.df,
+generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -6, legend_y = 5,
+             legend_x = -7, legend_y = 4,
              # legend_x = -2, legend_y = 2,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Commodity",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-6,4,-1,2),
+             limits = c(-7,5,-4,4),
              # limits = c(-2,2,-2,2),
              plot_spiders = F,
              plot_ellipses = F,
@@ -375,20 +392,21 @@ generate_pca(temp, mymetadata = metadata.df,
              colour_palette = my_colour_palette_15,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = T,
+             num_top_species = 4,
              plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
-             label_arrows = T, arrow_label_size = .3,arrow_label_colour = "grey20", 
-             specie_labeller_function = my_relabeller_function,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
              filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.pdf"))
 
 
-generate_pca(temp, mymetadata = metadata.df,
+generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -6, legend_y = 5,
+             legend_x = -7, legend_y = 4,
              point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
              legend_title = "Sample type",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-6,4,-1,2),
+             limits = c(-7,5,-4,4),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -398,19 +416,22 @@ generate_pca(temp, mymetadata = metadata.df,
              label_ellipse = F, ellipse_label_size = .5,
              colour_palette = rev(my_colour_palette_15),
              variable_to_plot = "Sample_type", legend_cols = 1,
-             variable_colours_available = F,
-             # my_levels = c(""),
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 2,
+             specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Sample_type_genus_pca.pdf"))
 
 
-generate_pca(temp, mymetadata = metadata.df,
+generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -6, legend_y = 5,
+             legend_x = -7, legend_y = 4,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Sample treatment",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-6,4,-1,2),
+             limits = c(-7,5,-4,4),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -420,20 +441,23 @@ generate_pca(temp, mymetadata = metadata.df,
              label_ellipse = F, ellipse_label_size = .5,
              colour_palette = my_colour_palette_15,
              variable_to_plot = "Sample_treatment", legend_cols = 1,
-             variable_colours_available = F,
-             # my_levels = c(""),
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 2,
+             specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.pdf"))
 
 
 
-generate_pca(temp, mymetadata = metadata.df,
+generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -6, legend_y = 5,
+             legend_x = -7, legend_y = 4,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Study accession",
              legend_cex = .4,
              plot_title = "",
-             limits = c(-6,4,-1,2),
+             limits = c(-7,5,-4,4),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -443,10 +467,238 @@ generate_pca(temp, mymetadata = metadata.df,
              label_ellipse = F, ellipse_label_size = .5,
              colour_palette = my_colour_palette_206_distinct,
              variable_to_plot = "study_accession", legend_cols = 2,
-             variable_colours_available = F,
-             # my_levels = c(""),
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 2,
+             specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.pdf"))
 
+
+
+source("Code/helper_functions.R")
+class_pca <- rda(t(otu_class_clr.m), data = metadata.df, scale = F)
+my_relabeller_function <- function(my_labels){
+  unlist(lapply(my_labels, 
+                function(x) {
+                  phylostring <- unlist(strsplit(x, split = ";"))
+                  # paste(phylostring[2],phylostring[3], phylostring[6], sep = ";")
+                  paste(phylostring[2], phylostring[3], sep = ";")
+                }))
+}
+
+generate_pca(class_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Commodity", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Commodity_class_pca.pdf"))
+
+generate_pca(class_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Sample type",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Sample_type", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Sample_type_class_pca.pdf"))
+
+generate_pca(class_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Sample treatment",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Sample_treatment", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Sample_treatment_class_pca.pdf"))
+
+generate_pca(class_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Sample accession",
+             legend_cex = .4,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "study_accession", legend_cols = 2,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Study_accession_class_pca.pdf"))
+
+# ------------------------------------
+# Calculate correlations between abundances for each taxa from each sample and the PC1 and PC2
+# PC scores for each sample (site)
+class_pca_site_scores <- m2df(scores(class_pca, display = "sites"), "Sample") # These will be scaled scores!
+class_pca_species_scores <- m2df(scores(class_pca, display = "species"), "taxonomy_class") # These will be scaled scores!
+
+# Calculate the percentage contribution from each species. Requires unscaled values that are squared
+pc1_contribution <- melt(round(100*scores(class_pca, display = "species", scaling = 0)[,1]^2, 3),value.name = "PC1_contribution_percentage")
+pc2_contribution <- melt(round(100*scores(class_pca, display = "species", scaling = 0)[,2]^2, 3),value.name = "PC2_contribution_percentage")
+
+# Filter to taxonomy in pca object (because we have filtered)
+class_abundance_pc_scores.df <- subset(class_data.df, taxonomy_class %in% rownames(otu_class_clr.m))
+
+# Combine with existing metadata
+class_abundance_pc_scores.df <- left_join(class_abundance_pc_scores.df, class_pca_site_scores, by = "Sample")
+
+# Filter to columns of interest
+class_abundance_pc_scores.df <- class_abundance_pc_scores.df[,c("Sample", "study_accession", "Commodity", "Sample_type", "Sample_treatment","taxonomy_class","Domain","Phylum","Class","Relative_abundance", "PC1", "PC2", grep("colour", names(metadata.df),value = T))]
+
+# Filter out entries where there is no PC score
+class_abundance_pc_scores.df <- class_abundance_pc_scores.df[!is.na(class_abundance_pc_scores.df$PC1),]
+
+class_abundance_pc_scores.df$Relative_abundance <- class_abundance_pc_scores.df$Relative_abundance*100
+
+# Calculate the correlation between the abundances for each taxa and the PC1 and PC2 scores
+class_abundance_pc_correlations.df <- 
+  class_abundance_pc_scores.df %>% 
+  group_by(taxonomy_class) %>% summarise(Pearson_PC1 = cor(PC1, Relative_abundance, method = "pearson"),
+                                         Pearson_PC2 = cor(PC2, Relative_abundance, method = "pearson"),
+                                         Spearman_PC1 = cor(PC1, Relative_abundance, method = "spearman"),
+                                         Spearman_PC2 = cor(PC2, Relative_abundance, method = "spearman"), 
+                                         N_Samples = n_distinct(Sample),
+                                         N_Projects = n_distinct(study_accession)) %>% 
+  # filter(N_Samples > 5, N_Projects > 1) %>% 
+  filter(N_Samples >= 5) %>% 
+  arrange(desc(abs(Pearson_PC1))) %>%
+  as.data.frame()
+
+class_abundance_pc_correlations.df <- left_join(class_abundance_pc_correlations.df, class_pca_species_scores, by = "taxonomy_class")
+
+# Add the percent contributions
+class_abundance_pc_correlations.df$PC1_contribution_percentage <- as.numeric(lapply(class_abundance_pc_correlations.df$taxonomy_class,  function(x) pc1_contribution[x,]))
+class_abundance_pc_correlations.df$PC2_contribution_percentage <- as.numeric(lapply(class_abundance_pc_correlations.df$taxonomy_class,  function(x) pc2_contribution[x,]))
+
+# Determine if any of the genera are in the top 10 for the commodity or a study
+commodity_class_top_10_taxa <- unique(filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, 
+                                                              grouping_variables = c("Commodity"),
+                                                              abundance_column = "Mean_relative_abundance",
+                                                              my_top_n = 10)$taxonomy_class)
+commodity_study_class_top_10_taxa <- unique(filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, 
+                                                                    grouping_variables = c("Commodity","study_accession"),
+                                                                    abundance_column = "Mean_relative_abundance",
+                                                                    my_top_n = 10)$taxonomy_class)
+class_abundance_pc_correlations.df$In_top_10_for_Commodity <- "no"
+class_abundance_pc_correlations.df$In_top_10_for_Commodity_accession <- "no"
+class_abundance_pc_correlations.df[class_abundance_pc_correlations.df$taxonomy_class %in% commodity_class_top_10_taxa,]$In_top_10_for_Commodity <- "yes"
+class_abundance_pc_correlations.df[class_abundance_pc_correlations.df$taxonomy_class %in% commodity_study_class_top_10_taxa,]$In_top_10_for_Commodity_accession <- "yes"
+
+
+# Write to file
+write.csv(class_abundance_pc_correlations.df,"Result_tables/combined/ordination/Class_relative_abundances_PC1_PC2_correlations_contributions.csv", quote = F, row.names = F)
+
+# Plot abundances against PC1 and PC2
+class_abundance_pc_correlations_filtered.df <- class_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC1) >= .7 | abs(Spearman_PC1) >= .7, In_top_10_for_Commodity_accession == "yes")
+# class_abundance_pc_correlations_filtered.df <- class_abundance_pc_correlations.df %>% filter(N_Samples >= 10, In_top_10_for_Commodity_accession == "yes")
+
+for (class in unique(class_abundance_pc_correlations_filtered.df$taxonomy_class)){
+  data_subset <- subset(class_abundance_pc_scores.df, taxonomy_class == class)
+  commodities.v <- setNames(as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity_colour),  as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity))
+  myplot <- ggplot(data_subset, aes(x = PC1, y = Relative_abundance, fill = Commodity, shape = Commodity)) +
+    geom_point(alpha = .8, size = 2) +
+    ggtitle(class) + 
+    ylab("Relative abundance") +
+    scale_fill_manual(values = commodities.v) +
+    scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
+    # scale_y_continuous(breaks = seq(0,100,5), limits = c(0,100)) + 
+    scale_y_continuous(breaks = seq(0,100,5)) + 
+    scale_x_continuous(breaks = seq(-3.5,3.5,1), limits = c(-3.5,3.5)) + 
+    common_theme +
+    theme(plot.title = element_text(size = 4))
+  class_splitted <- unlist(strsplit(class,";"))
+  # out_name <- paste0(gsub(" ", "_", paste(class_splitted[2], class_splitted[3],class_splitted[6], sep = "___")), "_PC1.pdf")
+  out_name <- paste0(gsub(";", "-", class), "__PC1.pdf")
+  print(out_name)
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/Class/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+}
+
+class_abundance_pc_correlations_filtered.df <- class_abundance_pc_correlations.df %>% filter(N_Samples >= 10, abs(Pearson_PC2) >= .7 | abs(Spearman_PC2) >= .7, In_top_10_for_Commodity_accession == "yes")
+for (class in unique(class_abundance_pc_correlations_filtered.df$taxonomy_class)){
+  data_subset <- subset(class_abundance_pc_scores.df, taxonomy_class == class)
+  commodities.v <- setNames(as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity_colour),  as.character(unique(data_subset[c("Commodity","Commodity_colour")])$Commodity))
+  myplot <- ggplot(data_subset, aes(x = PC2, y = Relative_abundance, fill = Commodity, shape = Commodity)) +
+    geom_point(alpha = .8, size = 2) +
+    ggtitle(class) + 
+    ylab("Relative abundance") +
+    scale_fill_manual(values = commodities.v) +
+    scale_shape_manual(values = rep(c(25,24,23,22,21),4)) +
+    # scale_y_continuous(breaks = seq(0,100,5), limits = c(0,100)) + 
+    scale_y_continuous(breaks = seq(0,100,5)) + 
+    scale_x_continuous(breaks = seq(-3.5,3.5,1), limits = c(-3.5,3.5)) + 
+    common_theme +
+    theme(plot.title = element_text(size = 4))
+  class_splitted <- unlist(strsplit(class,";"))
+  # out_name <- paste0(gsub(" ", "_", paste(class_splitted[2], class_splitted[3],class_splitted[6], sep = "___")), "_PC1.pdf")
+  out_name <- paste0(gsub(";", "-", class), "__PC2.pdf")
+  print(out_name)
+  ggsave(paste0("Result_figures/combined/ordination/abundances_vs_PC/Class/", out_name), plot = myplot, width = 12, height = 12, units = "cm")
+}
 
 
 ################################################

@@ -140,8 +140,8 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
                          plot_title = NULL, use_shapes = F, my_levels = NULL,
                          plot_arrows = F, arrow_colour = "black", arrow_alpha = 1,
                          label_arrows=T,arrow_label_size = .5, num_top_species = 5, arrow_scalar = 1,
-                         arrow_label_colour = "black", arrow_thickness = .2,
-                         specie_labeller_function = NULL){
+                         arrow_label_colour = "black", arrow_thickness = .2,arrow_label_font_type = 1,
+                         specie_labeller_function = NULL, arrow_label_offset = 0){
   pca.scores <- try(scores(pca_object, choices=c(1,2,3)))
   if(inherits(pca.scores, "try-error")) {
     return()
@@ -191,7 +191,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
     pdf(filename, height=plot_height,width=plot_width)  
   }
   
-  plot(pca_object,
+  plot(0,
        type='n',
        # x = 0, y=0,
        xlim = c(x_min,x_max),
@@ -279,48 +279,53 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   plot_arrows_func <- function(){
     
     left_pc1.v <- rownames(pca_specie_scores[order(pca_specie_scores[,1]),][1:num_top_species,])
-    right_pc1.v <- rownames(pca_specie_scores[order(pca_specie_scores[,1]),][(length(my_scores[,1]) - num_top_species):length(my_scores[,1]),])
+    right_pc1.v <- rownames(pca_specie_scores[order(pca_specie_scores[,1]),][(length(pca_specie_scores[,1]) - num_top_species):length(pca_specie_scores[,1]),])
     
     left_pc2.v <- rownames(pca_specie_scores[order(pca_specie_scores[,2]),][1:num_top_species,])
-    right_pc2.v <- rownames(pca_specie_scores[order(pca_specie_scores[,2]),][(length(my_scores[,2]) - num_top_species):length(my_scores[,2]),])
+    right_pc2.v <- rownames(pca_specie_scores[order(pca_specie_scores[,2]),][(length(pca_specie_scores[,2]) - num_top_species):length(pca_specie_scores[,2]),])
     
     top_vars.v <- unique(c(left_pc1.v, right_pc1.v, left_pc2.v, right_pc2.v))
     arrows(0,0, 
-           arrow_scalar *my_scores[top_vars.v,1], 
-           arrow_scalar *my_scores[top_vars.v,2], 
+           arrow_scalar * pca_specie_scores[top_vars.v,1], 
+           arrow_scalar * pca_specie_scores[top_vars.v,2], 
            length =0.05, 
            col = alpha(arrow_colour, arrow_alpha),
-           lwd = arrow_thickness)
+           lwd = arrow_thickness,
+           lty = 1)
     
     if (label_arrows){
       if (!is.null(specie_labeller_function)){
-        # text(x = my_scores[top_vars.v,1],
-        #      y = my_scores[top_vars.v,2],
+        # text(x = pca_specie_scores[top_vars.v,1],
+        #      y = pca_specie_scores[top_vars.v,2],
         #      labels = specie_labeller_function(top_vars.v),
         #      cex = .5,
         #      pos = sample(c(1,2,3,4),1))
         for (tv in top_vars.v){
-          text(x = my_scores[tv,1],
-               y = my_scores[tv,2],
+          text(x = pca_specie_scores[tv,1]* arrow_scalar,
+               y = pca_specie_scores[tv,2]* arrow_scalar,
                labels = specie_labeller_function(tv),
                cex = arrow_label_size,
                # Values of 1, 2, 3 and 4, respectively indicate positions below, 
                # to the left of, above and to the right of the specified (x,y) coordinates.
                pos = sample(c(1,2,3,4),1),
-               offset = 1,
-               col = alpha(arrow_label_colour,1))
+               # pos = 2,
+               offset = arrow_label_offset,
+               col = alpha(arrow_label_colour,1),
+               font = arrow_label_font_type)
           }
       } else{
         for (tv in top_vars.v){
-          text(x = my_scores[tv,1],
-               y = my_scores[tv,2],
+          text(x = pca_specie_scores[tv,1] * arrow_scalar,
+               y = pca_specie_scores[tv,2] * arrow_scalar,
                labels = tv,
                cex = arrow_label_size,
                # Values of 1, 2, 3 and 4, respectively indicate positions below, 
                # to the left of, above and to the right of the specified (x,y) coordinates.
                pos = sample(c(1,2,3,4),1),
-               offset = 1,
-               col = alpha(arrow_label_colour,1))
+               # pos = 2,
+               offset = arrow_label_offset,
+               col = alpha(arrow_label_colour,1),
+               font = arrow_label_font_type)
         }
       }
     }

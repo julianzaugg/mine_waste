@@ -14,7 +14,6 @@ library(nlme)
 
 source("Code/helper_functions.R")
 
-
 common_theme <- theme(
   panel.border = element_blank(), 
   panel.grid.major = element_blank(),
@@ -45,10 +44,13 @@ metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadat
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
+# Load the counts
 otu.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_OTU_counts.csv", row.names =  1))
+otu_genus.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_Genus_counts.csv", row.names =  1))
 
 # Create the rarefied matrix
 otu_rare.m <- t(rrarefy(t(otu.m[,colSums(otu.m) >= 5000]), 5000))
+otu_genus_rare.m <- t(rrarefy(t(otu_genus.m[,colSums(otu_genus.m) >= 5000]), 5000))
 
 # create phyloseq object
 otu_rare_phyloseq <- otu_table(otu_rare.m, taxa_are_rows=TRUE)

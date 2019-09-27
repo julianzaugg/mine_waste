@@ -86,6 +86,9 @@ create_project_result_dirs <- function(project_name){
   dir.create(file.path("./Result_figures",project_name, "exploratory_analysis"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_figures",project_name, "heatmaps"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_figures",project_name, "ordination"), showWarnings = FALSE,recursive = T)
+  dir.create(file.path("./Result_figures",project_name, "ordination/abundances_vs_PC"), showWarnings = FALSE,recursive = T)
+  dir.create(file.path("./Result_figures",project_name, "ordination/abundances_vs_PC/Genus"), showWarnings = FALSE,recursive = T)
+  dir.create(file.path("./Result_figures",project_name, "ordination/abundances_vs_PC/Class"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_figures",project_name, "QC_summary"), showWarnings = FALSE,recursive = T)
   
   dir.create(file.path("./Result_tables",project_name, "abundance_analysis_tables"), showWarnings = FALSE,recursive = T)
@@ -215,7 +218,7 @@ metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t"
 metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA493908",]
 
 # We are only interested in a samples that were targetted at the V4 region
-metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
+# metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
 
 # Remove samples where it was explicit that the ITS region was sequenced
 metadata.df <- subset(metadata.df, region_ITS_targeted == "no")
@@ -254,6 +257,8 @@ my_feature_table_files <- list.files(feature_tables_dir)
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA450848",my_feature_table_files)]
 # my_feature_table_files <- my_feature_table_files[grepl("PRJEB30328",my_feature_table_files)]
 # my_feature_table_files <- my_feature_table_files[grepl("PRJNA470773",my_feature_table_files)]
+# my_feature_table_files <- my_feature_table_files[grepl("PRJNA297129",my_feature_table_files)]
+
 # raw_project_otu_table.df <- data.frame()
 cnt = 0
 # Load and process the OTU table
@@ -262,11 +267,10 @@ for (feature_table_file in my_feature_table_files){
   # Load and process the OTU table
   full_path <- paste0(feature_tables_dir, "/",feature_table_file)
   project_otu_table.df <- read.csv(full_path)
-  # raw_project_otu_table.df <- project_otu_table.df
   project_name <- gsub("_.*","", feature_table_file)
   
   
-  if (! project_name %in% metadata.df$study_accession){
+  if (! project_name %in% metadata.df$study_accession){ # If the project is not listed in the metadata, skip
     print(paste0("Not processing project : ", project_name))
     next
   }
@@ -476,18 +480,18 @@ for (feature_table_file in my_feature_table_files){
   # Filter those OTUs that are low abundance in all samples
   # Check how many OTUs would be removed if we filtered any whose abundance is less than 0.05% (0.0005) in all samples
   filter_percentage = 0.0005
-  otu_rel_low_abundance_otus.m <- otu_rel.m[apply(otu_rel.m[,sample_ids,drop =F],1,function(z) all(z < filter_percentage)),]
+  otu_rel_low_abundance_otus.m <- otu_rel.m[apply(otu_rel.m[,sample_ids,drop =F],1,function(z) all(z < filter_percentage)),,drop = F]
   
   
   # TODO - Collect low abundance OTUs that will be filtered out at this stage
   # FIXME write.table(as.data.frame(otu_rel_low_abundance_otus.m), file = "Result_tables/count_tables/low_abundance_OTUs.csv", sep = ",", quote = F, col.names = T, row.names = F)
   percent_removed_before_taxa_filtered <- round(dim(otu_rel_low_abundance_otus.m)[1]/length(rownames(otu_unfiltered.m)) * 100,2)
   percent_removed_after_taxa_filtered <- round(dim(otu_rel_low_abundance_otus.m)[1]/length(rownames(otu.m)) * 100,2)
-  
   print(paste("There are a total of", dim(otu_rel.m)[1], "OTUs before filtering"))
   print(paste("A total of", dim(otu_rel_low_abundance_otus.m)[1], 
               "OTUs will be filtered at a threshold of", 
               filter_percentage * 100, "percent"))
+  
   
   # print(colSums(otu_rel.m[,"ERR3182717_J001", drop =F]))
   # print(colSums(otu.m[,"ERR3182717_J001", drop =F]))
@@ -517,33 +521,66 @@ for (feature_table_file in my_feature_table_files){
   # Get the most abundant unassigned features
   # Project table with just unassigned
   unassigned_project_otu_table_unfiltered.df <- project_otu_table_unfiltered.df[project_otu_table_unfiltered.df$Domain == "Unassigned",]
+  
   # Convert to dataframe
   unassigned_otu_unfiltered_rel.df <- m2df(otu_unfiltered_rel.m[as.character(unassigned_project_otu_table_unfiltered.df$OTU.ID),,drop =F],
                                            name_of_taxonomy_col = "OTU.ID")
+  
   # Melt
   unassigned_otu_unfiltered_rel.df <- melt(unassigned_otu_unfiltered_rel.df, variable.name = "Sample", value.name = "Relative_abundance")
+  if (max(unassigned_otu_unfiltered_rel.df$Relative_abundance) != 0){
+    
+    # Get the top most abundant unassigned features per sample
+    
+    most_abundant_unassigned.df <- unassigned_otu_unfiltered_rel.df %>% 
+      group_by(Sample) %>%
+      filter(Relative_abundance > 0) %>%
+      top_n(n = 10, wt = Relative_abundance) %>% 
+      mutate(Relative_abundance = round(Relative_abundance*100,3)) %>%
+      as.data.frame() 
+    
+    
+    # Get corresponding representative sequence
+    most_abundant_unassigned.df$RepSeq <- unlist(lapply(most_abundant_unassigned.df$OTU.ID, function(x) as.character(unassigned_project_otu_table_unfiltered.df[unassigned_project_otu_table_unfiltered.df$OTU.ID == x,]$RepSeq)))
+    write.csv(x = most_abundant_unassigned.df, file = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned.csv"), row.names = F)
+    
+    # Get unique set of features
+    unique_most_abundant_unassigned.df <- unique(most_abundant_unassigned.df[c("OTU.ID", "RepSeq")])
+    
+    # Write fasta file
+    write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
+                names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
+                file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned_features.fasta"))
+    
+  }
   
-  # Get the top most abundant unassigned features per sample
-  most_abundant_unassigned.df <- unassigned_otu_unfiltered_rel.df %>% 
+  # -------------------------------------------------------------------------------------------------------------------------------------
+  # TODO - Get the most abundant assigned features. These can be used, for example, to confirm the targeted region
+  # Convert to dataframe
+  otu_rel.df <- m2df(otu_rel.m, name_of_taxonomy_col = "OTU.ID")
+  
+  # Melt
+  otu_rel.df <- melt(otu_rel.df, variable.name = "Sample", value.name = "Relative_abundance")
+  
+  # Get the top most abundant features per sample
+  most_abundant_assigned.df <- otu_rel.df %>% 
     group_by(Sample) %>%
     filter(Relative_abundance > 0) %>%
-    top_n(n = 10, wt = Relative_abundance) %>% 
+    top_n(n = 5, wt = Relative_abundance) %>% 
     mutate(Relative_abundance = round(Relative_abundance*100,3)) %>%
     as.data.frame() 
   
   # Get corresponding representative sequence
-  most_abundant_unassigned.df$RepSeq <- unlist(lapply(most_abundant_unassigned.df$OTU.ID, function(x) as.character(unassigned_project_otu_table_unfiltered.df[unassigned_project_otu_table_unfiltered.df$OTU.ID == x,]$RepSeq)))
-  write.csv(x = most_abundant_unassigned.df, file = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned.csv"), row.names = F)
+  most_abundant_assigned.df$RepSeq <- unlist(lapply(most_abundant_assigned.df$OTU.ID, function(x) as.character(project_otu_table.df[project_otu_table.df$OTU.ID == x,]$RepSeq)))
+  write.csv(x = most_abundant_assigned.df, file = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_assigned.csv"), row.names = F)
   
   # Get unique set of features
-  unique_most_abundant_unassigned.df <- unique(most_abundant_unassigned.df[c("OTU.ID", "RepSeq")])
+  unique_most_abundant_assigned.df <- unique(most_abundant_assigned.df[c("OTU.ID", "RepSeq")])
   
   # Write fasta file
-  write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
-              names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
-              file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned_features.fasta"))
-  
-  # TODO - get the most abundant assigned features. These can be used, for example, to confirm targeted region
+  write.fasta(sequences = as.list(unique_most_abundant_assigned.df$RepSeq),open = "w", 
+              names = as.character(unique_most_abundant_assigned.df$OTU.ID),
+              file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_features.fasta"))
   
   # -------------------------------------------------------------------------------------------------------------------------------------
   # -------------------------------------------------------------------------------------------------------------------------------------
