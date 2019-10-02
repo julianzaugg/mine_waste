@@ -726,3 +726,83 @@ psotu2veg <- function(physeq) {
 }
 # ******************************************************************************************
 
+
+calculate_alpha_diversity_significance <- function(mydata, variable){
+  # Assumes there are Shannon, Chao1 and Simpson columns
+  # This is run assuming unpaired data.
+  results.df <- data.frame("Group_1" = character(),
+                           "Group_2" = character(),
+                           "Shannon_MannW_pvalue" = character(),
+                           "Simpson_MannW_pvalue" = character(),
+                           "Chao1_MannW_pvalue" = character(),
+                           "Shannon_KrusW_pvalue" = character(),
+                           "Simpson_KrusW_pvalue" = character(),
+                           "Chao1_KrusW_pvalue" = character())
+  group_combinations <- combn(as.character(unique(mydata[,variable])), 2)
+  
+  for (i in 1:ncol(group_combinations)) {
+    group_1 <- group_combinations[1,i]
+    group_2 <- group_combinations[2,i]
+    group_1_meta <- subset(mydata, get(variable) == group_1)
+    group_2_meta <- subset(mydata, get(variable) == group_2)
+    
+    # Mann-Whitney test on the Shannon diversity
+    wilcox_shannon_test <- wilcox.test(group_1_meta$Shannon, group_2_meta$Shannon, exact = F)
+    # Mann-Whitney test on the Simpson diversity
+    wilcox_simpson_test <- wilcox.test(group_1_meta$Simpson, group_2_meta$Simpson, exact = F)
+    # Mann-Whitney test on the Chao1 diversity
+    wilcox_chao1_test <- wilcox.test(group_1_meta$Chao1, group_2_meta$Chao1, exact = F)
+    
+    # Kruskal-Wallis (pairwise) test on the Shannon diversity
+    kruskal_shannon_test <- kruskal.test(Shannon~get(variable), data = subset(mydata, get(variable) %in% c(group_1, group_2)))
+    # Kruskal-Wallis (pairwise) test on the Simpson diversity
+    kruskal_simpson_test <- kruskal.test(Simpson~get(variable), data = subset(mydata, get(variable) %in% c(group_1, group_2)))
+    # Kruskal-Wallis (pairwise) test on the Chao1 diversity
+    kruskal_chao1_test <- kruskal.test(Chao1~get(variable), data = subset(mydata, get(variable) %in% c(group_1, group_2)))
+    
+    results.df <- rbind(results.df, data.frame("Group_1" = group_1, 
+                                               "Group_2" = group_2, 
+                                               "Shannon_MannW_pvalue" = round(wilcox_shannon_test$p.value,6),
+                                               "Simpson_MannW_pvalue" = round(wilcox_simpson_test$p.value,6),
+                                               "Chao1_MannW_pvalue" = round(wilcox_chao1_test$p.value,6),
+                                               "Shannon_KrusW_pvalue" = round(kruskal_shannon_test$p.value,6),
+                                               "Simpson_KrusW_pvalue" = round(kruskal_simpson_test$p.value,6),
+                                               "Chao1_KrusW_pvalue" = round(kruskal_chao1_test$p.value,6)
+    ))
+  }
+  results.df$Shannon_MannW_padj <- round(p.adjust(results.df$Shannon_MannW_pvalue,method = "BH"),6)
+  results.df$Simpson_MannW_padj <- round(p.adjust(results.df$Simpson_MannW_pvalue,method = "BH"),6)
+  results.df$Chao1_MannW_padj <- round(p.adjust(results.df$Chao1_MannW_pvalue,method = "BH"),6)
+  results.df$Shannon_KrusW_padj <- round(p.adjust(results.df$Shannon_KrusW_pvalue,method = "BH"),6)
+  results.df$Simpson_KrusW_padj <- round(p.adjust(results.df$Simpson_KrusW_pvalue,method = "BH"),6)
+  results.df$Chao1_KrusW_padj <- round(p.adjust(results.df$Chao1_KrusW_pvalue,method = "BH"),6)
+  results.df
+}
+
+
+summarise_alpha_diversities <- function(mydata, group_by_columns){
+  summary.df <- mydata %>% 
+    dplyr::group_by_(.dots = c(group_by_columns)) %>%
+    summarise(Shannon_Mean =mean(Shannon),
+              Shannon_Stdev=sd(Shannon),
+              Shannon_Max=max(Shannon), 
+              Shannon_Min=min(Shannon), 
+              Shannon_Median=median(Shannon), 
+              
+              Simpson_Mean=mean(Simpson), 
+              Simpson_Stdev=sd(Simpson),
+              Simpson_Max=max(Simpson), 
+              Simpson_Min=min(Simpson), 
+              Simpson_Median=median(Simpson), 
+              
+              Chao1_Mean=mean(Chao1), 
+              Chao1_Stdev=sd(Chao1),
+              Chao1_Max=max(Chao1), 
+              Chao1_Min=min(Chao1), 
+              Chao1_Median=median(Chao1),
+              
+              N_samples = n_distinct(Index),
+              N_projects = n_distinct(study_accession)) %>% as.data.frame()
+  summary.df
+}
+

@@ -1124,8 +1124,13 @@ temp$study_accession <- unlist(lapply(as.character(temp$Sample), function(x) as.
 temp <- temp[c("OTU.ID", "Sample", "study_accession", "Relative_abundance", "RepSeq")]
 write.csv(x = temp, file = "Result_tables/combined/other/combined_most_abundant_unassigned.csv", row.names = F, quote = F)
 
-# Combine matrices. These need to be melted together and re-spread
+temp <- combine_dataframes("Result_tables","P.*_most_abundant_assigned.csv")
+temp$study_accession <- unlist(lapply(as.character(temp$Sample), function(x) as.character(metadata.df[x,]$study_accession)))
+temp <- temp[c("OTU.ID", "Sample", "study_accession", "Relative_abundance", "RepSeq")]
+write.csv(x = temp, file = "Result_tables/combined/other/combined_most_abundant_assigned.csv", row.names = F, quote = F)
 
+
+# Combine matrices. These need to be melted together and re-spread
 combine_matrices <- function(base_location, mypattern){
   myfiles <- list.files(base_location, pattern = mypattern, recursive = T, full.names = T)
   my_data_frame <- NULL
@@ -1153,6 +1158,7 @@ for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
 
 # ------------------------------------------------------------
 # Combine fasta files
+# Unassigned
 my_files <- list.files("Result_tables",pattern = "P.*most_abundant_unassigned_features.fasta", recursive = T,include.dirs = T,full.names = T)
 # my_files <- my_files[grepl("PRJEB30328", my_files)]
 combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
@@ -1169,6 +1175,25 @@ for (fastafile in my_files){
 write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
             names = as.character(combined_fasta_info.df$OTU.ID),
             file.out = paste0("Result_tables/combined/other/combined_most_abundant_unassigned_features.fasta"))
+
+# Assigned
+my_files <- list.files("Result_tables",pattern = "P.*most_abundant_features.fasta", recursive = T,include.dirs = T,full.names = T)
+# my_files <- my_files[grepl("PRJEB30328", my_files)]
+combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
+for (fastafile in my_files){
+  # print(fastafile)
+  temp <- read.fasta(fastafile,as.string = T,forceDNAtolower = F)
+  for (seq_name in names(temp)){
+    combined_fasta_info.df <- unique(rbind(combined_fasta_info.df, data.frame("OTU.ID" = seq_name,
+                                                                              "RepSeq" = as.character(temp[seq_name]))))
+  }
+}
+# combined_fasta_info.df[combined_fasta_info.df$OTU.ID == "a790bd7b8fea7a2ae52dc0c6aba93e51",]
+# Write fasta file
+write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
+            names = as.character(combined_fasta_info.df$OTU.ID),
+            file.out = paste0("Result_tables/combined/other/combined_most_abundant_assigned_features.fasta"))
+
 # ------------------------------------------------------------
 
 
