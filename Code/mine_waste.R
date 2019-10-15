@@ -214,8 +214,10 @@ metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t"
 # --------------------------------------------------------------------
 # Note, the following projects are the same, either can be removed
 # https://www.ncbi.nlm.nih.gov/bioproject/PRJNA493908/
-# https://www.ncbi.nlm.nih.gov/bioproject/PRJEB28611/
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJEB28611/ **
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJNA511650 may also be the same...may be whole genome...though looks like amplicon
 metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA493908",]
+metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA511650",]
 
 # We are only interested in a samples that were targetted at the V4 region
 # metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")

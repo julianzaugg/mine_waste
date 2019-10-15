@@ -248,3 +248,8 @@ for (myvar in c("Commodity","Sample_type","Sample_treatment", "study_accession")
 beta_diversity_significances$padj <- round(p.adjust(beta_diversity_significances$P_value,method = "BH"),6)
 write.csv(beta_diversity_significances, file = "Result_tables/combined/diversity_analysis/beta_diversity_significance.csv", row.names = F, quote = F)
 
+temp <- with(metadata.df, anosim(t(clr(otu_genus_rare_subset.m)),Commodity, distance = "euclidean",permutations = 999))
+summary(temp)
+plot(temp)
+
+pairwise.wilcox.test(temp$dis.rank, temp$class.vec, p.adj = "BH")

@@ -191,7 +191,6 @@ make_heatmap(heatmap.m*100,
              palette_choice = 'purple',
              row_dend_width = unit(3, "cm"),
              simple_anno_size = unit(.25, "cm")
-             
 )
 
 # temp2 <- log(temp*100, 2)

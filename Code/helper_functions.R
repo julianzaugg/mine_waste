@@ -528,6 +528,8 @@ make_heatmap <- function(myheatmap_matrix,
                          my_annotation_palette = NULL,
                          discrete_legend = FALSE, # Whether or not to display continuous legend as discrete
                          simple_anno_size = unit(.5, "cm"), # size of annotations
+                         show_column_dend = F,
+                         show_row_dend = F,
                          ...
 ){
   
@@ -654,8 +656,8 @@ make_heatmap <- function(myheatmap_matrix,
                 cluster_rows = cluster_rows,
                 clustering_method_columns = "average",
                 clustering_method_rows = "average",
-                show_column_dend = T, 
-                show_row_dend = T,
+                show_column_dend = show_column_dend, 
+                show_row_dend = show_row_dend,
                 # column_dend_height = unit(2, "cm"),
                 # row_dend_width = unit(3, "cm"),
                 
