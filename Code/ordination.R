@@ -483,8 +483,6 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.pdf"))
 
-
-
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
              legend_x = -9, legend_y = 4,
@@ -508,6 +506,31 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.pdf"))
+
+
+generate_pca(genus_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -9, legend_y = 4,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Targeted 16S region",
+             legend_cex = .4,
+             plot_title = "",
+             limits = c(-9,10,-4,4),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .5,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Final_16S_region", legend_cols = 2,
+             variable_colours_available = F,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Final_16S_region_genus_pca.pdf"))
 
 
 
@@ -625,6 +648,33 @@ generate_pca(class_pca, mymetadata = metadata.df,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Study_accession_class_pca.pdf"))
+
+generate_pca(class_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Targeted 16S region",
+             legend_cex = .4,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Final_16S_region", legend_cols = 2,
+             variable_colours_available = F,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Final_16S_region_class_pca.pdf"))
+
 
 # ------------------------------------
 # Calculate correlations between abundances for each taxa from each sample and the PC1 and PC2
@@ -869,7 +919,8 @@ otu_genus_hellinger_abundances_bray_distances.m <- as.matrix(vegdist(otu_genus_t
 
 write.csv(otu_genus_clr_euclidean_distances.m, file = "Result_tables/combined/stats_various/genus_clr_transformed_euclidean_distance_matrix.csv", quote = F, row.names = F)
 write.csv(otu_genus_hellinger_bray_distances.m, file = "Result_tables/combined/stats_various/genus_hellinger_transformed_bray_distance_matrix.csv", quote = F, row.names = F)
-# Write PRIMER format metadata
+
+# Write PRIMER formatted metadata
 primer_metadata.df <- metadata.df[c("Index", "Commodity","study_accession", "Sample_treatment","Sample_type")]
 write.csv(primer_metadata.df, "Result_tables/combined/stats_various/primer_metadata.csv", quote = F, row.names = F)
 

@@ -42,7 +42,7 @@ library(reshape2)
 library(gplots)
 
 library(seqinr) # For writing fasta files
-source("Code/helper_functions.R")
+
 
 
 common_theme <- theme(
@@ -70,6 +70,7 @@ common_theme <- theme(
 # Set the working directory
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
 
+source("Code/helper_functions.R")
 
 ###############################################################
 # Create result directories if they are missing
@@ -210,17 +211,40 @@ create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, 
 # dim(metadata.df)
 # write.csv(x = metadata.df, file = "data/metadata.csv", quote = F, row.names = F)
 metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t")
+# temp <- read.table(pipe("pbpaste"), sep = "\t", header = T)
+# names(temp)[2] <- "Top_region_from_BLAST_trimmomatic_downsampled"
+# metadata.df$Top_region_from_BLAST_raw
+# temp <- temp[c("Bioproject","Primers_for_16S_samples_from_manually_checking_database_or_publication","Primer_notes", "Publication_link")]
+# temp$Publication_link
+# metadata.df <- left_join(metadata.df, temp, by = c("study_accession" = "Bioproject"))
+# subset(metadata.df, study_accession == "PRJNA431101")
+# write.table(x = metadata.df, file = "data/metadata.tsv", quote = F, row.names = F, sep = "\t")
+# Make empty cells NA
+metadata.df[metadata.df == ''] <- NA
 
 # --------------------------------------------------------------------
 # Note, the following projects are the same, either can be removed
-# https://www.ncbi.nlm.nih.gov/bioproject/PRJNA493908/
-# https://www.ncbi.nlm.nih.gov/bioproject/PRJEB28611/ **
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJNA493908/ ** Actually mentioned in the publication http://www.hjkxyj.org.cn/html/2019/6/20190606.htm
+# https://www.ncbi.nlm.nih.gov/bioproject/PRJEB28611/ 
 # https://www.ncbi.nlm.nih.gov/bioproject/PRJNA511650 may also be the same...may be whole genome...though looks like amplicon
-metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA493908",]
+# metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA493908",]
 metadata.df <- metadata.df[metadata.df$study_accession != "PRJNA511650",]
+metadata.df <- metadata.df[metadata.df$study_accession != "PRJEB28611",]
 
-# We are only interested in a samples that were targetted at the V4 region
-# metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
+# --------------------------------------------------------------------
+# We are only interested in a samples that were targeted at the V4 region (forward reads only or whole targeted region?)
+
+metadata.df$Final_16S_region <- metadata.df$Primers_for_16S_samples_from_manually_checking_database_or_publication
+metadata.df[is.na(metadata.df$Final_16S_region),]$Final_16S_region <- metadata.df[is.na(metadata.df$Final_16S_region),]$Top_region_from_BLAST_trimmomatic_downsampled
+
+summary(unique(metadata.df[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
+summary(unique(metadata.df[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(metadata.df[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
+summary(unique(metadata.df[c("study_accession", "Final_16S_region")])$Final_16S_region)
+
+metadata.df <- metadata.df[!is.na(metadata.df$Final_16S_region),]
+metadata.df <- metadata.df[grep("(^V4|^V4_)", metadata.df$Final_16S_region),]
+# --------------------------------------------------------------------
 
 # Remove samples where it was explicit that the ITS region was sequenced
 metadata.df <- subset(metadata.df, region_ITS_targeted == "no")
@@ -236,8 +260,6 @@ dim(metadata.df)
 length(unique(metadata.df$study_accession))
 
 # --------------------------------------------------------------------
-# Make empty cells NA
-metadata.df[metadata.df == ''] <- NA
 
 
 # Make the index the rowname
@@ -253,7 +275,7 @@ rownames(metadata.df) <- metadata.df$Index
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
-feature_tables_dir <- "data/feature_stats_AP19_separate_downsampled"
+feature_tables_dir <- "data/feature_statistics"
 my_feature_table_files <- list.files(feature_tables_dir)
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA255485",my_feature_table_files)]
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA450848",my_feature_table_files)]
@@ -557,7 +579,7 @@ for (feature_table_file in my_feature_table_files){
   }
   
   # -------------------------------------------------------------------------------------------------------------------------------------
-  # TODO - Get the most abundant assigned features. These can be used, for example, to confirm the targeted region
+  # Get the most abundant assigned features. These can be used, for example, to confirm the targeted region
   # Convert to dataframe
   otu_rel.df <- m2df(otu_rel.m, name_of_taxonomy_col = "OTU.ID")
   
@@ -568,7 +590,7 @@ for (feature_table_file in my_feature_table_files){
   most_abundant_assigned.df <- otu_rel.df %>% 
     group_by(Sample) %>%
     filter(Relative_abundance > 0) %>%
-    top_n(n = 5, wt = Relative_abundance) %>% 
+    top_n(n = 10, wt = Relative_abundance) %>% 
     mutate(Relative_abundance = round(Relative_abundance*100,3)) %>%
     as.data.frame() 
   
@@ -718,7 +740,8 @@ for (feature_table_file in my_feature_table_files){
   stats.df$Commodity <- project_metadata.df[samples_in_unfiltered,"Commodity"]
   stats.df$Sample_type <- project_metadata.df[samples_in_unfiltered,"Sample_type"]
   stats.df$Sample_treatment <- project_metadata.df[samples_in_unfiltered,"Sample_treatment"]
-  stats.df$Top_region_from_BLAST <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST"]
+  stats.df$Top_region_from_BLAST_raw <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST_raw"]
+  stats.df$Top_region_from_BLAST_trimmomatic_downsampled <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST_trimmomatic_downsampled"]
   
   stats.df[,"Original_read_counts"] <- colSums(otu_unfiltered.m[,samples_in_unfiltered, drop = F]) # Read counts prior to filtering out taxonomy / contaminants / low abundance features
   stats.df[samples_passing_QC,"Filtered_read_counts"] <- colSums(otu.m[,samples_passing_QC, drop = F])  # Read counts after filtering (contaminants, low read depth samples and low abundance features removed)
@@ -958,14 +981,6 @@ for (feature_table_file in my_feature_table_files){
   # Rarified counts = otu_rare.df
   # Rarified relative abundance = otu_rel_rare.df
   
-  # df2matrix <- function(mydf, rowname_col = 1){
-  #   temp <- mydf[,c(1:length(names(mydf)))[c(1:length(names(mydf))) != rowname_col]]
-  #   mymatrix <- as.matrix(temp)
-  #   rownames(mymatrix) <- mydf[,rowname_col]
-  #   # mymatrix[,rowname_col] <- NULL
-  #   return(mymatrix)
-  # }
-  
   reduced_tax_map <- otu_taxonomy_map.df
   reduced_tax_map$RepSeq <- NULL
   
@@ -1052,7 +1067,23 @@ combine_dataframes <- function(base_location, mypattern){
 # ----------------------------------------------------------------------------------------------------------------
 # Generate processed metadata, which is the metadata for the samples passing processing / QC
 processed_metadata.df <- combine_dataframes("Result_tables","P.*_processed_metadata.csv")
+summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
+summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(processed_metadata.df[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
+summary(unique(processed_metadata.df[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
+#processed_metadata.df[processed_metadata.df$Top_region_from_BLAST == "",]
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Final_16S_region")])$Final_16S_region)
+
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Final_16S_region")])$Final_16S_region)
+
+# subset(processed_metadata.df, study_accession == "PRJEB30267")
 # Assign unique colours for each discrete state for each variable
 # Sample_type
 variable_values <- sort(factor(as.character(unique(processed_metadata.df$Sample_type)), 
@@ -1083,8 +1114,6 @@ all_variable_colours <- as.character(lapply(as.character(processed_metadata.df$s
 processed_metadata.df$study_accession_colour <- all_variable_colours
 
 write.csv(processed_metadata.df, file = "Result_tables/combined/other/combined_processed_metadata.csv", row.names = F, quote = F)
-# write.csv(x = combine_dataframes("Result_tables","P.*_processed_metadata.csv"), 
-          # file = "Result_tables/combined/combined_processed_metadata.csv", row.names = F, quote = F)
 
 # ----------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------
@@ -1099,10 +1128,15 @@ commodity_summary.df <- temp %>% group_by(Commodity) %>% summarise(N_projects = 
                                            N_sample_treaments = n_distinct(Sample_treatment)) %>% as.data.frame()
 write.csv(commodity_summary.df, file = "Result_tables/combined/various_summary_tables/commodity_summary.csv", row.names = F, quote = F)
 
-study_summary.df <- temp %>% group_by(study_accession) %>% summarise(N_commodities = n_distinct(Commodity), 
+study_summary.df <- temp %>% group_by(study_accession) %>% summarise(Commodity = unique(Commodity), 
+                                                                     Region_from_blasting_reads = unique(Top_region_from_BLAST_trimmomatic_downsampled),
+                                                                     Region_from_database_or_publication = unique(Primers_for_16S_samples_from_manually_checking_database_or_publication),
+                                                                     Final_16S_region = unique(Final_16S_region),
                                                                      N_samples = n_distinct(Index),
                                                                      N_sample_types = n_distinct(Sample_type),
-                                                                     N_sample_treaments = n_distinct(Sample_treatment)) %>% as.data.frame()
+                                                                     N_sample_treaments = n_distinct(Sample_treatment)) %>% 
+  arrange(Final_16S_region) %>%
+  as.data.frame()
 write.csv(study_summary.df, file = "Result_tables/combined/various_summary_tables/study_accession_summary.csv", row.names = F, quote = F)
 
 
@@ -1147,7 +1181,6 @@ combine_matrices <- function(base_location, mypattern){
   my_data_frame <- my_data_frame %>% spread(variable,value,fill = 0)
   my_data_frame
 }
-# temp <- combine_matrices("Result_tables", "P.*_Phylum_counts_rarefied.csv")
 
 
 for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
@@ -1162,17 +1195,14 @@ for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
 # Combine fasta files
 # Unassigned
 my_files <- list.files("Result_tables",pattern = "P.*most_abundant_unassigned_features.fasta", recursive = T,include.dirs = T,full.names = T)
-# my_files <- my_files[grepl("PRJEB30328", my_files)]
 combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
 for (fastafile in my_files){
-  # print(fastafile)
   temp <- read.fasta(fastafile,as.string = T,forceDNAtolower = F)
   for (seq_name in names(temp)){
     combined_fasta_info.df <- unique(rbind(combined_fasta_info.df, data.frame("OTU.ID" = seq_name,
                                                                        "RepSeq" = as.character(temp[seq_name]))))
   }
 }
-# combined_fasta_info.df[combined_fasta_info.df$OTU.ID == "a790bd7b8fea7a2ae52dc0c6aba93e51",]
 # Write fasta file
 write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
             names = as.character(combined_fasta_info.df$OTU.ID),
@@ -1180,23 +1210,22 @@ write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w",
 
 # Assigned
 my_files <- list.files("Result_tables",pattern = "P.*most_abundant_features.fasta", recursive = T,include.dirs = T,full.names = T)
+
 # my_files <- my_files[grepl("PRJEB30328", my_files)]
 combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
 for (fastafile in my_files){
-  # print(fastafile)
   temp <- read.fasta(fastafile,as.string = T,forceDNAtolower = F)
   for (seq_name in names(temp)){
     combined_fasta_info.df <- unique(rbind(combined_fasta_info.df, data.frame("OTU.ID" = seq_name,
                                                                               "RepSeq" = as.character(temp[seq_name]))))
   }
 }
-# combined_fasta_info.df[combined_fasta_info.df$OTU.ID == "a790bd7b8fea7a2ae52dc0c6aba93e51",]
+
 # Write fasta file
 write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
             names = as.character(combined_fasta_info.df$OTU.ID),
             file.out = paste0("Result_tables/combined/other/combined_most_abundant_assigned_features.fasta"))
 
 # ------------------------------------------------------------
-
 
 

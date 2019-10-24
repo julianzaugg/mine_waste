@@ -165,11 +165,11 @@ heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered
 heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
 
 heatmap.m <- df2matrix(heatmap.m)
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", grep("colour", names(metadata.df), value =T)), drop = F])
 heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
 rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
-source("Code/helper_functions.R")
+# source("Code/helper_functions.R")
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
              filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_mean_relative_abundance_heatmap.pdf"),
@@ -277,7 +277,7 @@ heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered
 heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
 heatmap.m <- df2matrix(heatmap.m)
 
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", "Final_16S_region", grep("colour", names(metadata.df), value =T)), drop = F])
 heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
 rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
@@ -288,16 +288,18 @@ make_heatmap(heatmap.m*100,
              column_title = "Study accession",
              row_title = "Genus",
              plot_height = 30,
-             plot_width = 24,
+             plot_width = 15,
              cluster_columns = T,
              cluster_rows = T,
              column_title_size = 10,
              row_title_size = 10,
+             my_annotation_palette = my_colour_palette_15,
              legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
              my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Mean relative abundance %",
              discrete_legend = T,
              palette_choice = 'purple',
+             show_row_dend = F,
              row_dend_width = unit(25, "cm")
 )
 
@@ -326,17 +328,19 @@ make_heatmap(heatmap.m*100,
              column_title = "Commodity",
              row_title = "Genus",
              plot_height = 12,
-             plot_width = 9.5,
+             plot_width = 8.5,
              cluster_columns = T,
              cluster_rows = T,
              column_title_size = 10,
              annotation_name_size = 0,
              row_title_size = 10,
+             my_annotation_palette = my_colour_palette_15,
              legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
              my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              discrete_legend = T,
              legend_title = "Mean relative abundance %",
              palette_choice = 'purple',
+             show_row_dend = F,
              row_dend_width = unit(3, "cm")
 )
 

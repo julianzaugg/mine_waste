@@ -44,24 +44,31 @@ metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadat
 # Remove unknown commodity samples
 metadata.df <- subset(metadata.df, Commodity != "Unknown")
 
+# Remove non-V4 regions projects
+# metadata.df <- subset(metadata.df, Top_region_from_BLAST == "V4")
+
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
 
 # Load the counts
 otu.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_OTU_counts.csv", row.names =  1))
 otu_genus.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_Genus_counts.csv", row.names =  1))
+otu_class.m <- as.matrix(read.csv("Result_tables/combined/count_tables/combined_Class_counts.csv", row.names =  1))
 
 # Order the matrices and metadata to be the same order
 otu.m <- otu.m[,rownames(metadata.df)]
 otu_genus.m <- otu_genus.m[,rownames(metadata.df)]
+otu_class.m <- otu_class.m[,rownames(metadata.df)]
 
 # Create the rarefied matrix
 otu_rare.m <- t(rrarefy(t(otu.m[,colSums(otu.m) >= 5000]), 5000))
 otu_genus_rare.m <- t(rrarefy(t(otu_genus.m[,colSums(otu_genus.m) >= 5000]), 5000))
+otu_class_rare.m <- t(rrarefy(t(otu_class.m[,colSums(otu_class.m) >= 5000]), 5000))
 
 # create phyloseq object
 otu_rare_phyloseq <- otu_table(otu_rare.m, taxa_are_rows=TRUE)
 otu_genus_rare_phyloseq <- otu_table(otu_genus_rare.m, taxa_are_rows=TRUE)
+otu_class_rare_phyloseq <- otu_table(otu_class_rare.m, taxa_are_rows=TRUE)
 
 # Estimate alpha diversities
 otu_rare_alpha.df <- estimate_richness(otu_rare_phyloseq, measures = c("Chao1", "Simpson","Shannon"))
@@ -72,9 +79,13 @@ otu_genus_rare_alpha.df <- estimate_richness(otu_genus_rare_phyloseq, measures =
 otu_genus_rare_alpha.df <- otu_genus_rare_alpha.df[rownames(metadata.df),]
 # otu_genus_rare_alpha.df$se.chao1 <- NULL
 
+otu_class_rare_alpha.df <- estimate_richness(otu_class_rare_phyloseq, measures = c("Chao1", "Simpson","Shannon"))
+otu_class_rare_alpha.df <- otu_class_rare_alpha.df[rownames(metadata.df),]
+
 # Combine with metadata
 otu_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_rare_alpha.df, "Index"), by = "Index")
 otu_genus_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_genus_rare_alpha.df, "Index"), by = "Index")
+otu_class_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_class_rare_alpha.df, "Index"), by = "Index")
 
 # Write per-sample diversities to file
 write.csv(otu_rare_alpha.df,
@@ -83,7 +94,9 @@ write.csv(otu_rare_alpha.df,
 write.csv(otu_genus_rare_alpha.df,
           "Result_tables/combined/diversity_analysis/sample_genus_alpha_diversities.csv", quote = F, row.names = F
 )
-
+write.csv(otu_class_rare_alpha.df,
+          "Result_tables/combined/diversity_analysis/sample_class_alpha_diversities.csv", quote = F, row.names = F
+)
 
 
 discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_accession")
@@ -98,6 +111,12 @@ for (myvar in discrete_variables){
             file = paste0("Result_tables/combined/diversity_analysis/", myvar, "_genus_alpha_diversities_summary.csv"), quote = F, row.names = F)
   write.csv(calculate_alpha_diversity_significance(otu_genus_rare_alpha.df, myvar), 
             file = paste0("Result_tables/combined/diversity_analysis/", myvar, "_genus_alpha_diversities_significance.csv"), quote = F, row.names = F)
+  
+  
+  write.csv(summarise_alpha_diversities(otu_class_rare_alpha.df, myvar), 
+            file = paste0("Result_tables/combined/diversity_analysis/", myvar, "_class_alpha_diversities_summary.csv"), quote = F, row.names = F)
+  write.csv(calculate_alpha_diversity_significance(otu_class_rare_alpha.df, myvar), 
+            file = paste0("Result_tables/combined/diversity_analysis/", myvar, "_class_alpha_diversities_significance.csv"), quote = F, row.names = F)
 }
 
 
@@ -143,9 +162,12 @@ generate_diversity_boxplot <- function(mydata, variable, metric, variable_colour
   myplot
 }
 
+
 # Add the colours back
 # temp <- summarise_alpha_diversities(otu_genus_rare_alpha.df, "Commodity")
 # temp <- left_join(temp,metadata.df[c("Commodity", grep("_colour", names(metadata.df), value = T))])
+
+# FEATURE (OTU) LEVEL
 temp <- otu_rare_alpha.df
 temp <- left_join(temp,metadata.df[c("Index", grep("_colour", names(metadata.df), value = T))], by = "Index")
 
@@ -179,7 +201,7 @@ ggsave(plot = generate_diversity_boxplot(temp, "study_accession", "Simpson", var
 
 
 
-
+# GENUS LEVEL
 temp <- otu_genus_rare_alpha.df
 temp <- left_join(temp,metadata.df[c("Index", grep("_colour", names(metadata.df), value = T))], by = "Index")
 
@@ -212,14 +234,38 @@ ggsave(plot = generate_diversity_boxplot(temp, "study_accession", "Simpson", var
        filename = paste0("Result_figures/combined/diversity_analysis/Study_accession_genus_simpson.pdf"),width = 18, height = 12, units = "cm")
 
 
-# for (myvar in c("Commodity", "Sample_treatment","Sample_type")){
-#   ggsave(plot = generate_diversity_boxplot(temp, myvar, "Chao1", variable_colours_available = T),
-#          filename = paste0("Result_figures/combined/diversity_analysis/", myvar, "_chao1.pdf"),width = 20, height = 15, units = "cm")
-#   ggsave(plot = generate_diversity_boxplot(temp, myvar, "Shannon", variable_colours_available = T),
-#          filename = paste0("Result_figures/combined/diversity_analysis/", myvar, "_shannon.pdf"),width = 10, height = 15, units = "cm")
-#   ggsave(plot = generate_diversity_boxplot(temp, myvar, "Simpson", variable_colours_available = T),
-#          filename = paste0("Result_figures/combined/diversity_analysis/", myvar, "_simpson.pdf"),width = 10, height = 15, units = "cm")
-# }
+# CLASS LEVEL
+temp <- otu_class_rare_alpha.df
+temp <- left_join(temp,metadata.df[c("Index", grep("_colour", names(metadata.df), value = T))], by = "Index")
+
+ggsave(plot = generate_diversity_boxplot(temp, "Commodity", "Chao1", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Commodity_class_chao1.pdf"),width = 10, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Commodity", "Shannon", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Commodity_class_shannon.pdf"),width = 10, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Commodity", "Simpson", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Commodity_class_simpson.pdf"),width = 10, height = 12, units = "cm")
+
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_type", "Chao1", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_type_class_chao1.pdf"),width = 15, height = 15, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_type", "Shannon", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_type_class_shannon.pdf"),width = 15, height = 15, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_type", "Simpson", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_type_class_simpson.pdf"),width = 15, height = 15, units = "cm")
+
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_treatment", "Chao1", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_treatment_class_chao1.pdf"),width = 8, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_treatment", "Shannon", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_treatment_class_shannon.pdf"),width = 8, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "Sample_treatment", "Simpson", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Sample_treatment_class_simpson.pdf"),width = 8, height = 12, units = "cm")
+
+ggsave(plot = generate_diversity_boxplot(temp, "study_accession", "Chao1", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Study_accession_class_chao1.pdf"),width = 18, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "study_accession", "Shannon", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Study_accession_class_shannon.pdf"),width = 18, height = 12, units = "cm")
+ggsave(plot = generate_diversity_boxplot(temp, "study_accession", "Simpson", variable_colours_available = T),
+       filename = paste0("Result_figures/combined/diversity_analysis/Study_accession_class_simpson.pdf"),width = 18, height = 12, units = "cm")
+
 
 
 # ------------------------------------------------------------------------------------------------------------------------------
@@ -247,6 +293,7 @@ for (myvar in c("Commodity","Sample_type","Sample_treatment", "study_accession")
 
 beta_diversity_significances$padj <- round(p.adjust(beta_diversity_significances$P_value,method = "BH"),6)
 write.csv(beta_diversity_significances, file = "Result_tables/combined/diversity_analysis/beta_diversity_significance.csv", row.names = F, quote = F)
+
 
 temp <- with(metadata.df, anosim(t(clr(otu_genus_rare_subset.m)),Commodity, distance = "euclidean",permutations = 999))
 summary(temp)

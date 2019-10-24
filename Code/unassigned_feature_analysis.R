@@ -74,13 +74,21 @@ metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadat
 rownames(metadata.df) <- metadata.df$Index
 
 # Load abundance data for unassigned features. These abundances are calculated prior to filtering taxa or features.
-# feature_abundances.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_OTU_counts_abundances_and_metadata.csv", header = T)
+temp <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_OTU_counts_abundances_and_metadata.csv", header = T)
+dim(temp)
+length(unique(temp$OTU.ID))
+length(unique(temp$taxonomy_genus))
+temp <- temp[temp$Relative_abundance > 0.005,]
+dim(temp)
+length(unique(temp$OTU.ID))
+length(unique(temp$taxonomy_genus))
+
 feature_abundances.df <- read.csv("Result_tables/combined/other/combined_most_abundant_unassigned.csv", header = T)
 feature_abundances.df <- feature_abundances.df[feature_abundances.df$Sample %in% metadata.df$Index,]
 
 # Load blast results for the most abundant features
-# May need to manually fix file to remove bad characters, e.g. '#'
-top_blast_hits.df <- read.table("Additional_results/unassigned_blast_final.tsv", sep = "\t", header = T) 
+# May need to manually fix file to remove bad characters, e.g. # and '
+top_blast_hits.df <- read.table("Additional_results/unassigned_blast_final_cleaned.tsv", sep = "\t", header = T) 
 top_blast_hits.df <- top_blast_hits.df[c("query_id","subject_id","subject_scientific_name","Taxonomy")]
 
 # strain

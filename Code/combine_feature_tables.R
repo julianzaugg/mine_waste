@@ -7,8 +7,9 @@ library(reshape2)
 # Load and process the OTU tables into a single one
 
 # Set the working directory
-setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
-mydir <- "data/feature_stats_AP19_separate_downsampled"
+#setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
+#mydir <- "data/feature_stats_AP19_separate_downsampled"
+mydir <- "/srv/projects1/mine_waste/8_acepipe/feature_statistics"
 myfiles <- list.files(mydir)
 my_data_frame <- NULL
 for (myfile in myfiles){
@@ -29,4 +30,5 @@ for (myfile in myfiles){
 # Requires a lot of memory. May need to be run on server.
 my_data_frame_spread <- my_data_frame %>% spread(variable,value,fill = 0)
 
-write.csv(x = my_data_frame_spread, file = "Data/feature_statistics.csv", quote = F, row.names = F)
+#write.csv(x = my_data_frame_spread, file = "Data/feature_statistics.csv", quote = F, row.names = F)
+write.csv(x = my_data_frame_spread, file = "/srv/projects1/mine_waste/8_acepipe/feature_statistics.csv", quote = F, row.names = F)
