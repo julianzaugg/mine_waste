@@ -1,7 +1,7 @@
 library(vegan)
 library(ggplot2)
 library(ggfortify)
-source("Code/helper_functions.R")
+
 
 ############################################################
 # Various colour colour_palettes
@@ -61,7 +61,7 @@ get_samples_missing_data <- function(my_metadata, variables){
 # ------------------------------------------------------------------------------------------
 # Set the working directory
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
-
+source("Code/helper_functions.R")
 
 # Load the processed metadata
 metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
@@ -102,6 +102,9 @@ metadata.df <- metadata.df[order(rownames(metadata.df)),]
 otu_genus.df <- read.table("Result_tables/combined/count_tables/combined_Genus_counts.csv", sep =",", header =T)
 otu_class.df <- read.table("Result_tables/combined/count_tables/combined_Class_counts.csv", sep =",", header =T)
 
+otu_genus_rel.df <- read.table("Result_tables/combined/relative_abundance_tables/combined_Genus_relative_abundances.csv", sep =",", header =T)
+otu_class_rel.df <- read.table("Result_tables/combined/relative_abundance_tables/combined_Class_relative_abundances.csv", sep =",", header =T)
+
 # Load data with metadata
 # otu_data.df <- read.csv("Result_tables/combined/combined_OTU_counts_abundances_and_metadata.csv",header = T)
 genus_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Genus_counts_abundances_and_metadata.csv",header = T)
@@ -113,6 +116,7 @@ genus_data.df <- left_join(genus_data.df, metadata.df[c("Index",grep("colour", n
           by = c("Sample" = "Index"))
 class_data.df <- left_join(class_data.df, metadata.df[c("Index",grep("colour", names(metadata.df), value =T))],
                            by = c("Sample" = "Index"))
+
 # dim(genus_data.df)
 # Generate summary for each commodity + project
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,
@@ -135,10 +139,16 @@ class_taxa_summary_filtered.df <- class_taxa_summary.df %>% filter(Percent_group
 otu_genus.m <- df2matrix(otu_genus.df)[unique(genus_taxa_summary_filtered.df$taxonomy_genus),]
 otu_class.m <- df2matrix(otu_class.df)[unique(class_taxa_summary_filtered.df$taxonomy_class),]
 
+otu_genus_rel.m <- df2matrix(otu_genus_rel.df)[unique(genus_taxa_summary_filtered.df$taxonomy_genus),]
+otu_class_rel.m <- df2matrix(otu_class_rel.df)[unique(class_taxa_summary_filtered.df$taxonomy_class),]
+
 # Order the matrices and metadata to be the same order
 # otu.m <- otu.m[,rownames(metadata.df)]
 otu_genus.m <- otu_genus.m[,rownames(metadata.df)]
 otu_class.m <- otu_class.m[,rownames(metadata.df)]
+
+otu_genus_rel.m <- otu_genus_rel.m[,rownames(metadata.df)]
+otu_class_rel.m <- otu_class_rel.m[,rownames(metadata.df)]
 
 # Filter to those entries that have at least # counts in at least one sample
 # dim(otu_genus.m)
@@ -152,11 +162,20 @@ otu_class.m <- otu_class.m[,rownames(metadata.df)]
 # CLR transform
 otu_genus_clr.m <- clr(otu_genus.m)
 otu_class_clr.m <- clr(otu_class.m)
+
+otu_genus_rel_clr.m <- clr(otu_genus_rel.m)
+otu_class_rel_clr.m <- clr(otu_class_rel.m)
+
 # otu_genus_rare_clr.m <- clr(otu_genus_rare.m)
 
-# Correct negative values if present
-otu_genus_clr.m[which(otu_genus_clr.m < 0)] <- 0
-otu_class_clr.m[which(otu_class_clr.m < 0)] <- 0
+plot(density(otu_class_clr.m))
+plot(density(otu_class_rel_clr.m))
+
+# Correct negative values if present # EDIT 1/11/19, no idea why I was doing this.
+# otu_genus_clr.m[which(otu_genus_clr.m < 0)] <- 0
+# otu_class_clr.m[which(otu_class_clr.m < 0)] <- 0
+
+# otu_class_rel_clr.m[which(otu_class_rel_clr.m < 0)] <- 0
 # otu_genus_rare_clr.m[which(otu_genus_rare_clr.m < 0)] <- 0
 
 # Hellinger transformed
@@ -228,6 +247,7 @@ otu_genus_transformed.m <- decostand(t(otu_genus.m), method = "hellinger")
 # Generate ordination object
 # genus_pca <- rda(t(otu_genus_clr.m), data = metadata.df, scale = T) # ~1 makes it unconstrained
 genus_pca <- rda(t(otu_genus_clr.m), data = metadata.df)
+genus_rel_pca <- rda(t(otu_genus_rel_clr.m), data = metadata.df)
 
 # ------------------------------------
 # Calculate correlations between abundances for each taxa from each sample and the PC1 and PC2
@@ -406,16 +426,15 @@ my_relabeller_function <- function(my_labels){
 #              filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca_transformed.pdf"))
 
 
-
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 4,
+             legend_x = -9, legend_y = 3,
              # legend_x = -2, legend_y = 2,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Commodity",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-9,10,-4,4),
+             limits = c(-9,4,-4,3),
              # limits = c(-2,2,-2,2),
              plot_spiders = F,
              plot_ellipses = F,
@@ -428,20 +447,47 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
              filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.pdf"))
 
 
+generate_pca(genus_rel_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -9, legend_y = 3,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             # limits = c(-9,4,-4,3),
+             # limits = c(-2,2,-2,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Commodity", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
+             filename = paste0("Result_figures/combined/ordination/Commodity_genus_rel_pca.pdf"))
+
+
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 4,
+             legend_x = -9, legend_y = 3,
              point_size = .6, point_line_thickness = 0.3,point_alpha =.8,
              legend_title = "Sample type",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-9,10,-4,4),
+             limits = c(-9,4,-4,3),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -453,7 +499,7 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Sample_type", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Sample_type_genus_pca.pdf"))
@@ -461,12 +507,12 @@ generate_pca(genus_pca, mymetadata = metadata.df,
 
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 4,
+             legend_x = -9, legend_y = 3,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Sample treatment",
              legend_cex = .5,
              plot_title = "",
-             limits = c(-9,10,-4,4),
+             limits = c(-9,4,-4,3),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -478,19 +524,19 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Sample_treatment", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.pdf"))
 
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 4,
+             legend_x = -9, legend_y = 3,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Study accession",
              legend_cex = .4,
              plot_title = "",
-             limits = c(-9,10,-4,4),
+             limits = c(-9,4,-4,3),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -502,7 +548,7 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "study_accession", legend_cols = 2,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.pdf"))
@@ -510,12 +556,12 @@ generate_pca(genus_pca, mymetadata = metadata.df,
 
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 4,
+             legend_x = -9, legend_y = 3,
              point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
              legend_title = "Targeted 16S region",
              legend_cex = .4,
              plot_title = "",
-             limits = c(-9,10,-4,4),
+             limits = c(-9,4,-4,3),
              plot_spiders = F,
              plot_ellipses = F,
              plot_hulls = F,
@@ -527,7 +573,7 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Final_16S_region", legend_cols = 2,
              variable_colours_available = F,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 2,arrow_thickness = .5,
+             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Final_16S_region_genus_pca.pdf"))
@@ -535,7 +581,10 @@ generate_pca(genus_pca, mymetadata = metadata.df,
 
 
 source("Code/helper_functions.R")
+
 class_pca <- rda(t(otu_class_clr.m), data = metadata.df, scale = F)
+class_rel_pca <- rda(t(otu_class_rel_clr.m), data = metadata.df, scale = F)
+
 my_relabeller_function <- function(my_labels){
   unlist(lapply(my_labels, 
                 function(x) {
@@ -570,6 +619,32 @@ generate_pca(class_pca, mymetadata = metadata.df,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
              filename = paste0("Result_figures/combined/ordination/Commodity_class_pca.pdf"))
+
+generate_pca(class_rel_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -7, legend_y = 2,
+             # legend_x = -2, legend_y = 2,
+             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-7,6.2,-4,2.5),
+             # limits = c(-2.5,2.5,-2.5,2.5),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = T,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Commodity", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             specie_labeller_function = my_relabeller_function,
+             filename = paste0("Result_figures/combined/ordination/Commodity_class_rel_pca.pdf"))
 
 generate_pca(class_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
@@ -930,6 +1005,10 @@ permanova_results <- run_permanova_custom(my_metadata = metadata.df,
                                           my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Sample_treatment+Sample_type),
                                           my_method = "euclidean",
                                           label = "CLR")
+# run_permanova_custom(my_metadata = metadata.df,
+#                      my_formula = as.formula(t(otu_class_clr.m)~Commodity+study_accession+Sample_treatment+Sample_type),
+#                      my_method = "euclidean",
+#                      label = "CLR")
 
 permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
                                               my_formula = as.formula(t(otu_genus_clr.m)~study_accession+Sample_treatment+Sample_type+Commodity),
@@ -947,116 +1026,116 @@ permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata =
                                                                    label = "CLR"))
 
 # clr bray
-print("Centred-log ratio transformed counts - Bray-Curtis distance")
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Sample_treatment+Sample_type),
-                                                                   my_method = "bray",
-                                                                   label = "CLR"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus_clr.m)~study_accession+Sample_treatment+Sample_type+Commodity),
-                                                                   my_method = "bray",
-                                                                   label = "CLR"))
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus_clr.m)~Sample_treatment+Sample_type+Commodity+study_accession),
-                                                                   my_method = "bray",
-                                                                   label = "CLR"))
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus_clr.m)~Sample_type+Commodity+study_accession+Sample_treatment),
-                                                                   my_method = "bray",
-                                                                   label = "CLR"))
+# print("Centred-log ratio transformed counts - Bray-Curtis distance")
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus_clr.m)~Commodity+study_accession+Sample_treatment+Sample_type),
+#                                                                    my_method = "bray",
+#                                                                    label = "CLR"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus_clr.m)~study_accession+Sample_treatment+Sample_type+Commodity),
+#                                                                    my_method = "bray",
+#                                                                    label = "CLR"))
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus_clr.m)~Sample_treatment+Sample_type+Commodity+study_accession),
+#                                                                    my_method = "bray",
+#                                                                    label = "CLR"))
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus_clr.m)~Sample_type+Commodity+study_accession+Sample_treatment),
+#                                                                    my_method = "bray",
+#                                                                    label = "CLR"))
 
 # untransformed euclidean
-print("Untransformed counts - Euclidean distance")
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Commodity+study_accession+Sample_treatment+Sample_type),
-                                                                   my_method = "euclidean",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~study_accession+Sample_treatment+Sample_type+Commodity),
-                                                                   my_method = "euclidean",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Sample_treatment+Sample_type+Commodity+study_accession),
-                                                                   my_method = "euclidean",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Sample_type+Commodity+study_accession+Sample_treatment),
-                                                                   my_method = "euclidean",
-                                                                   label = "Untransformed"))
+# print("Untransformed counts - Euclidean distance")
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Commodity+study_accession+Sample_treatment+Sample_type),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~study_accession+Sample_treatment+Sample_type+Commodity),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Sample_treatment+Sample_type+Commodity+study_accession),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Sample_type+Commodity+study_accession+Sample_treatment),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Untransformed"))
 
 # untransformed bray
-print("Untransformed counts - Bray-Curtis distance")
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Commodity+study_accession+Sample_treatment+Sample_type),
-                                                                   my_method = "bray",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~study_accession+Sample_treatment+Sample_type+Commodity),
-                                                                   my_method = "bray",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Sample_treatment+Sample_type+Commodity+study_accession),
-                                                                   my_method = "bray",
-                                                                   label = "Untransformed"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(t(otu_genus.m)~Sample_type+Commodity+study_accession+Sample_treatment),
-                                                                   my_method = "bray",
-                                                                   label = "Untransformed"))
+# print("Untransformed counts - Bray-Curtis distance")
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Commodity+study_accession+Sample_treatment+Sample_type),
+#                                                                    my_method = "bray",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~study_accession+Sample_treatment+Sample_type+Commodity),
+#                                                                    my_method = "bray",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Sample_treatment+Sample_type+Commodity+study_accession),
+#                                                                    my_method = "bray",
+#                                                                    label = "Untransformed"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(t(otu_genus.m)~Sample_type+Commodity+study_accession+Sample_treatment),
+#                                                                    my_method = "bray",
+#                                                                    label = "Untransformed"))
 
 
 # Hellinger transformed euclidean
-print("Untransformed counts - Euclidean distance")
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Commodity+study_accession+Sample_treatment+Sample_type),
-                                                                   my_method = "euclidean",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~study_accession+Sample_treatment+Sample_type+Commodity),
-                                                                   my_method = "euclidean",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Sample_treatment+Sample_type+Commodity+study_accession),
-                                                                   my_method = "euclidean",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Sample_type+Commodity+study_accession+Sample_treatment),
-                                                                   my_method = "euclidean",
-                                                                   label = "Hellinger"))
+# print("Untransformed counts - Euclidean distance")
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Commodity+study_accession+Sample_treatment+Sample_type),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~study_accession+Sample_treatment+Sample_type+Commodity),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Sample_treatment+Sample_type+Commodity+study_accession),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Sample_type+Commodity+study_accession+Sample_treatment),
+#                                                                    my_method = "euclidean",
+#                                                                    label = "Hellinger"))
 
 
 # Hellinger transformed bray
-print("Hellinger counts - Bray-Curtis distance")
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Commodity+study_accession+Sample_treatment+Sample_type),
-                                                                   my_method = "bray",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~study_accession+Sample_treatment+Sample_type+Commodity),
-                                                                   my_method = "bray",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Sample_treatment+Sample_type+Commodity+study_accession),
-                                                                   my_method = "bray",
-                                                                   label = "Hellinger"))
-
-permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
-                                                                   my_formula = as.formula(otu_genus_transformed.m~Sample_type+Commodity+study_accession+Sample_treatment),
-                                                                   my_method = "bray",
-                                                                   label = "Hellinger"))
+# print("Hellinger counts - Bray-Curtis distance")
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Commodity+study_accession+Sample_treatment+Sample_type),
+#                                                                    my_method = "bray",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~study_accession+Sample_treatment+Sample_type+Commodity),
+#                                                                    my_method = "bray",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Sample_treatment+Sample_type+Commodity+study_accession),
+#                                                                    my_method = "bray",
+#                                                                    label = "Hellinger"))
+# 
+# permanova_results <- rbind(permanova_results, run_permanova_custom(my_metadata = metadata.df,
+#                                                                    my_formula = as.formula(otu_genus_transformed.m~Sample_type+Commodity+study_accession+Sample_treatment),
+#                                                                    my_method = "bray",
+#                                                                    label = "Hellinger"))
 
 
 write.csv(permanova_results, file = "Result_tables/combined/stats_various/PERMANOVA.csv", row.names = F, quote = F)

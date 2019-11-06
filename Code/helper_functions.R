@@ -1,3 +1,15 @@
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+# library(vegan)
+library(reshape2)
+# library(gplots)
+# library(pheatmap)
+library(grid)
+
+
 ####################################
 # Define various colour palettes
 # Various colour palettes
@@ -530,6 +542,7 @@ make_heatmap <- function(myheatmap_matrix,
                          simple_anno_size = unit(.5, "cm"), # size of annotations
                          show_column_dend = F,
                          show_row_dend = F,
+                         do_not_order = F,
                          ...
 ){
   
@@ -620,9 +633,11 @@ make_heatmap <- function(myheatmap_matrix,
   if (!is.null(my_row_labels)){
     my_row_labels.v <- as.character(lapply(my_row_labels.v, function(x) as.character(row_labels.df[row_labels.df[,1] == x,][,2])))
   }
-  # Order the heatmap rows by the row labels names
-  internal_heatmap_matrix.m <- internal_heatmap_matrix.m[order(my_row_labels.v),]
-  my_row_labels.v <- my_row_labels.v[order(my_row_labels.v)]
+  if (do_not_order != T){
+    # Order the heatmap rows by the row labels names
+    internal_heatmap_matrix.m <- internal_heatmap_matrix.m[order(my_row_labels.v),]
+    my_row_labels.v <- my_row_labels.v[order(my_row_labels.v)]    
+  }
   
   hm <- Heatmap(matrix = internal_heatmap_matrix.m,
                 

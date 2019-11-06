@@ -3,14 +3,25 @@
 # Generate boxplots for discrete 
 # Comparison of continuous variables vs diversity indices
 
-
+detachAllPackages <- function() {
+  
+  basic.packages <- c("package:stats","package:graphics","package:grDevices","package:utils","package:datasets","package:methods","package:base")
+  
+  package.list <- search()[ifelse(unlist(gregexpr("package:",search()))==1,TRUE,FALSE)]
+  
+  package.list <- setdiff(package.list,basic.packages)
+  
+  if (length(package.list)>0)  for (package in package.list) detach(package, character.only=TRUE)
+  
+}
+detachAllPackages()
 library(vegan)
 library(reshape2)
 library(dplyr)
 library(ggplot2)
-library(FSA)
+# library(FSA)
 library(phyloseq)
-library(nlme)
+# library(nlme)
 
 source("Code/helper_functions.R")
 
@@ -118,6 +129,8 @@ for (myvar in discrete_variables){
   write.csv(calculate_alpha_diversity_significance(otu_class_rare_alpha.df, myvar), 
             file = paste0("Result_tables/combined/diversity_analysis/", myvar, "_class_alpha_diversities_significance.csv"), quote = F, row.names = F)
 }
+
+
 
 
 generate_diversity_boxplot <- function(mydata, variable, metric, variable_colours_available = T){

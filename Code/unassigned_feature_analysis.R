@@ -135,54 +135,109 @@ full_table.df <- subset(full_table.df, Commodity != "Unknown")
 
 
 # Generate taxa summaries
-strain_taxa_summary.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_strain",group_by_columns = c("Commodity", "study_accession"))
-species_taxa_summary.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_species",group_by_columns = c("Commodity", "study_accession"))
-genus_taxa_summary.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity", "study_accession"))
+strain_taxa_summary_study_accession.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_strain",group_by_columns = c("Commodity", "study_accession"))
+species_taxa_summary_study_accession.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_species",group_by_columns = c("Commodity", "study_accession"))
+genus_taxa_summary_study_accession.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity", "study_accession"))
+class_taxa_summary_study_accession.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity", "study_accession"))
 
+strain_taxa_summary_commodity.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_strain",group_by_columns = c("Commodity"))
+species_taxa_summary_commodity.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_species",group_by_columns = c("Commodity"))
+genus_taxa_summary_commodity.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity"))
+class_taxa_summary_commodity.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
 
-strain_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = strain_taxa_summary.df, 
+# Filtered summaries
+strain_taxa_summary_filtered_study_accession.df <- filter_summary_to_top_n(taxa_summary = strain_taxa_summary_study_accession.df, 
                                                           grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance",
                                                           my_top_n = 10)
 
-species_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = species_taxa_summary.df, 
+species_taxa_summary_filtered_study_accession.df <- filter_summary_to_top_n(taxa_summary = species_taxa_summary_study_accession.df, 
                                                           grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance",
                                                           my_top_n = 10)
-genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+genus_taxa_summary_filtered_study_accession.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary_study_accession.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+class_taxa_summary_filtered_study_accession.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary_study_accession.df, 
                                                           grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance",
                                                           my_top_n = 10)
 
 
-heatmap_strain.m <- strain_taxa_summary.df[c("study_accession", "taxonomy_strain","Mean_relative_abundance")]
-# heatmap_strain.m <- heatmap_strain.m[heatmap_strain.m$taxonomy_strain %in% strain_taxa_summary_filtered.df$taxonomy_strain,]
-heatmap_strain.m <- heatmap_strain.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
-heatmap_strain.m <- df2matrix(heatmap_strain.m)
+strain_taxa_summary_filtered_commodity.df <- filter_summary_to_top_n(taxa_summary = strain_taxa_summary_commodity.df, 
+                                                                           grouping_variables = c("Commodity"),
+                                                                           abundance_column = "Mean_relative_abundance",
+                                                                           my_top_n = 10)
 
-heatmap_genus.m <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
-heatmap_genus.m <- heatmap_genus.m[heatmap_genus.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
-heatmap_genus.m <- heatmap_genus.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
-heatmap_genus.m <- df2matrix(heatmap_genus.m)
+species_taxa_summary_filtered_commodity.df <- filter_summary_to_top_n(taxa_summary = species_taxa_summary_commodity.df, 
+                                                                            grouping_variables = c("Commodity"),
+                                                                            abundance_column = "Mean_relative_abundance",
+                                                                            my_top_n = 10)
+genus_taxa_summary_filtered_commodity.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary_commodity.df, 
+                                                                          grouping_variables = c("Commodity"),
+                                                                          abundance_column = "Mean_relative_abundance",
+                                                                          my_top_n = 10)
+class_taxa_summary_filtered_commodity.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary_commodity.df, 
+                                                                          grouping_variables = c("Commodity"),
+                                                                          abundance_column = "Mean_relative_abundance",
+                                                                          my_top_n = 10)
 
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
-heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
-rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+heatmap_strain_study_accession.m <- strain_taxa_summary_study_accession.df[c("study_accession", "taxonomy_strain","Mean_relative_abundance")]
+heatmap_strain_study_accession.m <- heatmap_strain_study_accession.m[heatmap_strain_study_accession.m$taxonomy_strain %in% strain_taxa_summary_filtered_study_accession.df$taxonomy_strain,]
+heatmap_strain_study_accession.m <- heatmap_strain_study_accession.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+heatmap_strain_study_accession.m <- df2matrix(heatmap_strain_study_accession.m)
+
+heatmap_genus_study_accession.m <- genus_taxa_summary_study_accession.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
+heatmap_genus_study_accession.m <- heatmap_genus_study_accession.m[heatmap_genus_study_accession.m$taxonomy_genus %in% genus_taxa_summary_filtered_study_accession.df$taxonomy_genus,]
+heatmap_genus_study_accession.m <- heatmap_genus_study_accession.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+heatmap_genus_study_accession.m <- df2matrix(heatmap_genus_study_accession.m)
+
+heatmap_class_study_accession.m <- class_taxa_summary_study_accession.df[c("study_accession", "taxonomy_class","Mean_relative_abundance")]
+heatmap_class_study_accession.m <- heatmap_class_study_accession.m[heatmap_class_study_accession.m$taxonomy_class %in% class_taxa_summary_filtered_study_accession.df$taxonomy_class,]
+heatmap_class_study_accession.m <- heatmap_class_study_accession.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+heatmap_class_study_accession.m <- df2matrix(heatmap_class_study_accession.m)
+
+heatmap_genus_commodity.m <- genus_taxa_summary_commodity.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
+heatmap_genus_commodity.m <- heatmap_genus_commodity.m[heatmap_genus_commodity.m$taxonomy_genus %in% genus_taxa_summary_filtered_commodity.df$taxonomy_genus,]
+heatmap_genus_commodity.m <- heatmap_genus_commodity.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+heatmap_genus_commodity.m <- df2matrix(heatmap_genus_commodity.m)
+
+heatmap_class_commodity.m <- class_taxa_summary_commodity.df[c("Commodity", "taxonomy_class","Mean_relative_abundance")]
+heatmap_class_commodity.m <- heatmap_class_commodity.m[heatmap_class_commodity.m$taxonomy_class %in% class_taxa_summary_filtered_commodity.df$taxonomy_class,]
+heatmap_class_commodity.m <- heatmap_class_commodity.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+heatmap_class_commodity.m <- df2matrix(heatmap_class_commodity.m)
 
 
-make_heatmap(heatmap_genus.m*100, 
-             mymetadata = heatmap_metadata.df,
+heatmap_metadata_study_accession.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata_study_accession.df)[names(heatmap_metadata_study_accession.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata_study_accession.df)[names(heatmap_metadata_study_accession.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
+heatmap_metadata_study_accession.df <- subset(heatmap_metadata_study_accession.df, Commodity != "Unknown")
+rownames(heatmap_metadata_study_accession.df) <- heatmap_metadata_study_accession.df$study_accession
+
+heatmap_metadata_commodity.df <- unique(metadata.df[,c("Commodity", "Commodity_colour"), drop = F])
+heatmap_metadata_commodity.df <- subset(heatmap_metadata_commodity.df, Commodity != "Unknown")
+rownames(heatmap_metadata_commodity.df) <- heatmap_metadata_commodity.df$Commodity
+
+
+make_heatmap(heatmap_genus_study_accession.m*100, 
+             mymetadata = heatmap_metadata_study_accession.df,
              filename = paste0("Result_figures/combined/heatmaps/Study_accession_unassigned_genus_top_10_mean_relative_abundance_heatmap.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
              column_title = "Study accession",
              row_title = "Genus",
              plot_height = 15,
-             plot_width = 12,
+             plot_width = 13,
              cluster_columns = F,
              cluster_rows = T,
              column_title_size = 10,
              row_title_size = 10,
              annotation_name_size = 10,
+             my_annotation_palette = my_colour_palette_15,
              legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
              my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              legend_title = "Mean relative abundance %",
@@ -193,25 +248,8 @@ make_heatmap(heatmap_genus.m*100,
              # row_dend_width = unit(5, "cm")
 )
 
-
-genus_taxa_summary.df <- generate_taxa_summary_unassigned(mydata = full_table.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity"))
-genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
-                                                          grouping_variables = c("Commodity"),
-                                                          abundance_column = "Mean_relative_abundance",
-                                                          my_top_n = 10)
-
-heatmap.m <- genus_taxa_summary.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
-heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
-heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
-heatmap.m <- df2matrix(heatmap.m)
-
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "Commodity_colour"), drop = F])
-heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
-rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
-
-
-make_heatmap(heatmap.m*100, 
-             mymetadata = heatmap_metadata.df,
+make_heatmap(heatmap_genus_study_accession.m*100, 
+             mymetadata = heatmap_metadata_study_accession.df,
              filename = paste0("Result_figures/combined/heatmaps/Commodity_unassigned_genus_top_10_mean_relative_abundance_heatmap.pdf"),
              variables = c("Commodity"),
              column_title = "Commodity",
@@ -230,4 +268,53 @@ make_heatmap(heatmap.m*100,
              palette_choice = 'purple',
              row_dend_width = unit(3, "cm")
 )
+
+
+
+make_heatmap(heatmap_class_study_accession.m*100, 
+             mymetadata = heatmap_metadata_study_accession.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_unassigned_class_top_10_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Genus",
+             plot_height = 10,
+             plot_width = 12,
+             cluster_columns = F,
+             cluster_rows = T,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 10,
+             my_annotation_palette = my_colour_palette_15,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             legend_title = "Mean relative abundance %",
+             discrete_legend = T,
+             palette_choice = 'purple',
+             show_column_dend = F,
+             show_row_dend = F,
+             # row_dend_width = unit(5, "cm")
+)
+
+make_heatmap(heatmap_class_commodity.m*100, 
+             mymetadata = heatmap_metadata_commodity.df,
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_unassigned_genus_top_10_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity"),
+             column_title = "Commodity",
+             row_title = "Genus",
+             plot_height = 10,
+             plot_width = 7,
+             cluster_columns = T,
+             cluster_rows = T,
+             column_title_size = 10,
+             annotation_name_size = 0,
+             row_title_size = 10,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
+
+
 

@@ -12,7 +12,7 @@ library(reshape2)
 # library(pheatmap)
 library(grid)
 
-source("Code/helper_functions.R")
+
 
 
 # --------------------
@@ -44,15 +44,32 @@ my_colour_palette_32_distinct <- c("#ea7e00","#ca0074","#d1c69b","#474007","#bb0
 # patient_palette_45 <- c("#d64530","#585fb1","#795d97","#9e4773","#3f6921","#71692c","#a2b93c","#d571cc","#9b3e97","#33947a","#98ad66","#448a4e","#869ae0","#5ce7af","#e085a3","#dfdc87","#d19be2","#5cb735","#e38269","#3db6c0","#50b565","#50902c","#a98a2c","#dde84a","#db3d76","#5fe485","#7c8329","#b3e791","#6fe965","#5ebce9","#3c86c1","#2a6a45","#65b688","#6651d1","#af4ed3","#df872f","#56e4db","#737cea","#ac464b","#dd37b5","#995b2b","#daac6f","#92e2be","#a2e24b","#e0be3a")
 my_colour_palette_10_distinct <- c("#8eec45","#0265e8","#f6a800","#bf6549","#486900","#c655a0","#00d1b6","#ff4431","#aeb85c","#7e7fc8")
 my_colour_palette_10_soft <- c("#9E788F","#4C5B61","#678D58","#AD5233","#A0A083","#4D456A","#588578","#D0AC4C","#2A7BA0","#931621")
+
+# ------------------------------------
+library(viridis)
+viridis_palette <- rev(viridis(12))
+magma_palette <- rev(magma(12))
+plasma_palette <- rev(plasma(12))
+inferno_palette <- rev(inferno(12))
+cividis_palette <- rev(cividis(12))
+
+viridis_palette[1] <- "white"
+magma_palette[1] <- "white"
+plasma_palette[1] <- "white"
+inferno_palette[1] <- "white"
+cividis_palette[1] <- "white"
+# ------------------------------------
 ####################################
 
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
+source("Code/helper_functions.R")
 
 # Load the processed metadata
 metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
 
 # Set the Index to be the rowname
 rownames(metadata.df) <- metadata.df$Index
+length(unique(metadata.df$study_accession))
 
 # Load the OTU - taxonomy mapping file
 # otu_taxonomy_map.df <- read.csv("Result_tables/combined/combined_otu_taxonomy_map.csv", header = T)
@@ -165,7 +182,12 @@ heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered
 heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
 
 heatmap.m <- df2matrix(heatmap.m)
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
 heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
 rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
@@ -173,12 +195,12 @@ rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
              filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_mean_relative_abundance_heatmap.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
              column_title = "Study accession",
              row_title = "Class",
              plot_height = 7,
-             plot_width = 10,
-             cluster_columns = T,
+             plot_width = 11,
+             cluster_columns = F,
              cluster_rows = T,
              column_title_size = 10,
              row_title_size = 10,
@@ -193,26 +215,31 @@ make_heatmap(heatmap.m*100,
              simple_anno_size = unit(.25, "cm")
 )
 
-# temp2 <- log(temp*100, 2)
-# temp2[is.infinite(temp2)] <- 0
-# make_heatmap(temp2, 
-#              mymetadata = temp_metadata.df,
-#              filename = paste0("Result_figures/combined/top_10_class_per_accession_mean_relative_abundance_log_scale.pdf"),
-#              variables = c("Commodity","Sample_type","Sample_treatment"),
-#              column_title = "Study accession",
-#              plot_height = 7,
-#              plot_width = 10,
-#              cluster_columns = F,
-#              cluster_rows = F,
-#              column_title_size = 10,
-#              row_title_size = 10,
-#              annotation_name_size = 6,
-#              my_annotation_palette = my_colour_palette_15,
-#              #legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
-#              my_breaks = round(c(0,log(c(0.001, 0.005,0.05, seq(.1,.6,.1))*100,2)),2),
-#              legend_title = "Mean relative abundance %",
-#              palette_choice = 'purple'
-# )
+# Presence / absence
+make_heatmap(as.matrix((heatmap.m > 0) + 0), 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_presence_absence_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Class",
+             plot_height = 7,
+             plot_width = 11,
+             cluster_columns = F,
+             cluster_rows = T,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             my_palette = c("white", "darkred"),
+             legend_labels = c("Absent" ,"Present"),
+             my_breaks = c(0,1),
+             discrete_legend = T,
+             legend_title = "",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm"),
+             simple_anno_size = unit(.25, "cm")
+)
+
 
 
 class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
@@ -277,14 +304,19 @@ heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered
 heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
 heatmap.m <- df2matrix(heatmap.m)
 
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", "Final_16S_region", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
 heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
 rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
              filename = paste0("Result_figures/combined/heatmaps/Study_accession_genus_top_10_mean_relative_abundance_heatmap.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
              column_title = "Study accession",
              row_title = "Genus",
              plot_height = 30,
@@ -359,14 +391,14 @@ heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered
 heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
 heatmap.m <- df2matrix(heatmap.m)
 
-heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", grep("colour", names(metadata.df), value =T)), drop = F])
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment", "Final_16S_region", grep("colour", names(metadata.df), value =T)), drop = F])
 heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
 rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
 
 make_heatmap(heatmap.m*100, 
              mymetadata = heatmap_metadata.df,
              filename = paste0("Result_figures/combined/heatmaps/Commodity_study_accession_top_10_Gammaproteobacteria_and_Alphaproteobacteria_genus_mean_relative_abundance_heatmap.pdf"),
-             variables = c("Commodity","Sample_type","Sample_treatment"),
+             variables = c("Commodity","Sample_type","Sample_treatment","Final_16S_region"),
              column_title = "Study accession",
              row_title = "Genus",
              plot_height = 18,
@@ -376,6 +408,7 @@ make_heatmap(heatmap.m*100,
              column_title_size = 10,
              annotation_name_size = 10,
              row_title_size = 10,
+             my_annotation_palette = my_colour_palette_15,
              legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
              my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
              discrete_legend = T,

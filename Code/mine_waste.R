@@ -211,7 +211,22 @@ create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, 
 # dim(metadata.df)
 # write.csv(x = metadata.df, file = "data/metadata.csv", quote = F, row.names = F)
 metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t")
+
+# unique(subset(metadata.df, study_accession %in% temp)[c("study_accession","Commodity","Top_region_from_BLAST_raw", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])
 # temp <- read.table(pipe("pbpaste"), sep = "\t", header = T)
+# metadata.df$Top_region_from_BLAST_raw_reverse
+# metadata.df <- left_join(metadata.df, temp, by = c("study_accession" = "Project"))
+# metadata.df$Top_forward_region <- NULL
+# metadata.df$N_sampled_reads_forward <- NULL
+# metadata.df$N_sampled_reads_reverse <- NULL
+# metadata.df$Top_region_from_BLAST_raw_reverse
+# names(metadata.df)[names(metadata.df) == "Top_reverse_region"] <- "Top_region_from_BLAST_raw_reverse"
+# metadata.df[!is.na(metadata.df$Top_region_from_BLAST_raw_reverse),]
+# metadata.df$Top_region_from_BLAST_raw_full <- NA
+
+# metadata.df[!is.na(metadata.df$Top_region_from_BLAST_raw_reverse),]$Top_region_from_BLAST_raw_full <- gsub("(V.)_*(V.)","\\1_\\2",with(metadata.df[!is.na(metadata.df$Top_region_from_BLAST_raw_reverse),], paste0(Top_region_from_BLAST_raw_forward, "_", Top_region_from_BLAST_raw_reverse)))
+
+# metadata.df[!is.na(metadata.df$Top_region_from_BLAST_raw_reverse),c("Top_region_from_BLAST_raw_forward","Top_region_from_BLAST_raw_reverse", "Top_region_from_BLAST_raw_full")]
 # names(temp)[2] <- "Top_region_from_BLAST_trimmomatic_downsampled"
 # metadata.df$Top_region_from_BLAST_raw
 # temp <- temp[c("Bioproject","Primers_for_16S_samples_from_manually_checking_database_or_publication","Primer_notes", "Publication_link")]
@@ -221,6 +236,7 @@ metadata.df <- read.table("data/mine_waste_metadata.tsv", header = T, sep = "\t"
 # write.table(x = metadata.df, file = "data/metadata.tsv", quote = F, row.names = F, sep = "\t")
 # Make empty cells NA
 metadata.df[metadata.df == ''] <- NA
+
 
 # --------------------------------------------------------------------
 # Note, the following projects are the same, either can be removed
@@ -233,12 +249,13 @@ metadata.df <- metadata.df[metadata.df$study_accession != "PRJEB28611",]
 
 # --------------------------------------------------------------------
 # We are only interested in a samples that were targeted at the V4 region (forward reads only or whole targeted region?)
+dim(metadata.df)
+length(unique(metadata.df$study_accession))
 
 metadata.df$Final_16S_region <- metadata.df$Primers_for_16S_samples_from_manually_checking_database_or_publication
-metadata.df[is.na(metadata.df$Final_16S_region),]$Final_16S_region <- metadata.df[is.na(metadata.df$Final_16S_region),]$Top_region_from_BLAST_trimmomatic_downsampled
+metadata.df[is.na(metadata.df$Final_16S_region),]$Final_16S_region <- metadata.df[is.na(metadata.df$Final_16S_region),]$Top_region_from_BLAST_raw_combined
 
-summary(unique(metadata.df[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
-summary(unique(metadata.df[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(metadata.df[c("study_accession", "Top_region_from_BLAST_raw_combined")])$Top_region_from_BLAST_raw_combined)
 summary(unique(metadata.df[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
 summary(unique(metadata.df[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
@@ -277,6 +294,9 @@ rownames(metadata.df) <- metadata.df$Index
 
 feature_tables_dir <- "data/feature_statistics"
 my_feature_table_files <- list.files(feature_tables_dir)
+
+temp <- gsub("_features_statistics.csv", "", my_feature_table_files)[!gsub("_features_statistics.csv", "", my_feature_table_files) %in% metadata.df$study_accession]
+# subset(metadata.df, study_accession %in% temp)
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA255485",my_feature_table_files)]
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA450848",my_feature_table_files)]
 # my_feature_table_files <- my_feature_table_files[grepl("PRJEB30328",my_feature_table_files)]
@@ -543,7 +563,8 @@ for (feature_table_file in my_feature_table_files){
   # -------------------------------------------------------------------------------------------------------------------------------------
   # -------------------------------------------------------------------------------------------------------------------------------------
   # Get the most abundant unassigned features
-  # Project table with just unassigned
+  
+  # Project table with just unassigned features
   unassigned_project_otu_table_unfiltered.df <- project_otu_table_unfiltered.df[project_otu_table_unfiltered.df$Domain == "Unassigned",]
   
   # Convert to dataframe
@@ -740,8 +761,7 @@ for (feature_table_file in my_feature_table_files){
   stats.df$Commodity <- project_metadata.df[samples_in_unfiltered,"Commodity"]
   stats.df$Sample_type <- project_metadata.df[samples_in_unfiltered,"Sample_type"]
   stats.df$Sample_treatment <- project_metadata.df[samples_in_unfiltered,"Sample_treatment"]
-  stats.df$Top_region_from_BLAST_raw <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST_raw"]
-  stats.df$Top_region_from_BLAST_trimmomatic_downsampled <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST_trimmomatic_downsampled"]
+  stats.df$Top_region_from_BLAST_raw_combined <- project_metadata.df[samples_in_unfiltered,"Top_region_from_BLAST_raw_combined"]
   
   stats.df[,"Original_read_counts"] <- colSums(otu_unfiltered.m[,samples_in_unfiltered, drop = F]) # Read counts prior to filtering out taxonomy / contaminants / low abundance features
   stats.df[samples_passing_QC,"Filtered_read_counts"] <- colSums(otu.m[,samples_passing_QC, drop = F])  # Read counts after filtering (contaminants, low read depth samples and low abundance features removed)
@@ -1067,19 +1087,16 @@ combine_dataframes <- function(base_location, mypattern){
 # ----------------------------------------------------------------------------------------------------------------
 # Generate processed metadata, which is the metadata for the samples passing processing / QC
 processed_metadata.df <- combine_dataframes("Result_tables","P.*_processed_metadata.csv")
-summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
-summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST_raw_combined")])$Top_region_from_BLAST_raw_combined)
 summary(unique(processed_metadata.df[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
 summary(unique(processed_metadata.df[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
 #processed_metadata.df[processed_metadata.df$Top_region_from_BLAST == "",]
-summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
-summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_raw_combined")])$Top_region_from_BLAST_raw_combined)
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
-summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Top_region_from_BLAST_raw")])$Top_region_from_BLAST_raw)
-summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Top_region_from_BLAST_trimmomatic_downsampled")])$Top_region_from_BLAST_trimmomatic_downsampled)
+summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Top_region_from_BLAST_raw_combined")])$Top_region_from_BLAST_raw_combined)
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes" & Commodity != "Unknown")[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
@@ -1129,7 +1146,7 @@ commodity_summary.df <- temp %>% group_by(Commodity) %>% summarise(N_projects = 
 write.csv(commodity_summary.df, file = "Result_tables/combined/various_summary_tables/commodity_summary.csv", row.names = F, quote = F)
 
 study_summary.df <- temp %>% group_by(study_accession) %>% summarise(Commodity = unique(Commodity), 
-                                                                     Region_from_blasting_reads = unique(Top_region_from_BLAST_trimmomatic_downsampled),
+                                                                     Region_from_blasting_reads = unique(Top_region_from_BLAST_raw_combined),
                                                                      Region_from_database_or_publication = unique(Primers_for_16S_samples_from_manually_checking_database_or_publication),
                                                                      Final_16S_region = unique(Final_16S_region),
                                                                      N_samples = n_distinct(Index),
