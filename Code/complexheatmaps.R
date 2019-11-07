@@ -72,7 +72,7 @@ rownames(metadata.df) <- metadata.df$Index
 length(unique(metadata.df$study_accession))
 
 # Load the OTU - taxonomy mapping file
-# otu_taxonomy_map.df <- read.csv("Result_tables/combined/combined_otu_taxonomy_map.csv", header = T)
+# otu_taxonomy_map.df <- read.csv("Result_tables/combined/other/combined_otu_taxonomy_map.csv", header = T)
 
 # Factorise discrete columns
 metadata.df$Commodity <- factor(metadata.df$Commodity)
