@@ -77,6 +77,8 @@ source("Code/helper_functions.R")
 dir.create(file.path(".", "Result_figures"), showWarnings = FALSE)
 dir.create(file.path(".", "Result_tables"), showWarnings = FALSE)
 dir.create(file.path(".", "Result_objects"), showWarnings = FALSE)
+dir.create(file.path(".", "Result_other"), showWarnings = FALSE)
+
 
 
 create_project_result_dirs <- function(project_name){
@@ -94,7 +96,6 @@ create_project_result_dirs <- function(project_name){
   
   dir.create(file.path("./Result_tables",project_name, "abundance_analysis_tables"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_tables",project_name, "count_tables"), showWarnings = FALSE,recursive = T)
-  
   dir.create(file.path("./Result_tables",project_name, "DESeq_results"), showWarnings = FALSE,recursive = T)
   
   dir.create(file.path("./Result_tables",project_name, "diversity_analysis"), showWarnings = FALSE,recursive = T)
@@ -107,6 +108,9 @@ create_project_result_dirs <- function(project_name){
   dir.create(file.path("./Result_tables",project_name, "various_summary_tables"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_tables",project_name, "taxa_summary_tables"), showWarnings = FALSE,recursive = T)
   dir.create(file.path("./Result_tables",project_name, "ordination"), showWarnings = FALSE,recursive = T)
+  
+  dir.create(file.path("./Result_other",project_name, "sequences"), showWarnings = FALSE,recursive = T)
+  dir.create(file.path("./Result_other",project_name, "trees"), showWarnings = FALSE,recursive = T)
 }
 # dir.create(file.path("./Result_tables","combined"), showWarnings = FALSE)
 # dir.create(file.path("./Result_figures","combined"), showWarnings = FALSE)
@@ -595,7 +599,7 @@ for (feature_table_file in my_feature_table_files){
     # Write fasta file
     write.fasta(sequences = as.list(unique_most_abundant_unassigned.df$RepSeq),open = "w", 
                 names = as.character(unique_most_abundant_unassigned.df$OTU.ID),
-                file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_unassigned_features.fasta"))
+                file.out = paste0("Result_other/",project_name,"/sequences/",project_name,"_most_abundant_unassigned_features.fasta"))
     
   }
   
@@ -625,7 +629,7 @@ for (feature_table_file in my_feature_table_files){
   # Write fasta file
   write.fasta(sequences = as.list(unique_most_abundant_assigned.df$RepSeq),open = "w", 
               names = as.character(unique_most_abundant_assigned.df$OTU.ID),
-              file.out = paste0("Result_tables/",project_name,"/other/",project_name,"_most_abundant_features.fasta"))
+              file.out = paste0("Result_other/",project_name,"/sequences/",project_name,"_most_abundant_features.fasta"))
   
   # -------------------------------------------------------------------------------------------------------------------------------------
   # -------------------------------------------------------------------------------------------------------------------------------------
@@ -1223,10 +1227,10 @@ for (fastafile in my_files){
 # Write fasta file
 write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
             names = as.character(combined_fasta_info.df$OTU.ID),
-            file.out = paste0("Result_tables/combined/other/combined_most_abundant_unassigned_features.fasta"))
+            file.out = paste0("Result_other/combined/sequences/combined_most_abundant_unassigned_features.fasta"))
 
 # Assigned
-my_files <- list.files("Result_tables",pattern = "P.*most_abundant_features.fasta", recursive = T,include.dirs = T,full.names = T)
+my_files <- list.files("Result_other",pattern = "P.*most_abundant_features.fasta", recursive = T,include.dirs = T,full.names = T)
 
 # my_files <- my_files[grepl("PRJEB30328", my_files)]
 combined_fasta_info.df <- data.frame("OTU.ID" = character(), "RepSeq" = character())
@@ -1241,7 +1245,7 @@ for (fastafile in my_files){
 # Write fasta file
 write.fasta(sequences = as.list(combined_fasta_info.df$RepSeq),open = "w", 
             names = as.character(combined_fasta_info.df$OTU.ID),
-            file.out = paste0("Result_tables/combined/other/combined_most_abundant_assigned_features.fasta"))
+            file.out = paste0("Result_other/combined/sequences/combined_most_abundant_assigned_features.fasta"))
 
 # ------------------------------------------------------------
 
