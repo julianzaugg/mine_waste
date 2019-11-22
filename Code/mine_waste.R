@@ -165,27 +165,32 @@ create_combined_dataframe <- function(counts.df, counts_rare.df, abundances.df, 
   }
   else if (mylevel == "Species"){
     names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_species"
-    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "Species", "taxonomy_species")])
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "Species", 
+                                               "taxonomy_phylum", "taxonomy_class", "taxonomy_order", "taxonomy_family", "taxonomy_genus","taxonomy_species")])
     combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_species", by.y = "taxonomy_species")
   }
   else if (mylevel == "Genus"){
     names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_genus"
-    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", "taxonomy_genus")])
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "Genus", 
+                                               "taxonomy_phylum", "taxonomy_class", "taxonomy_order", "taxonomy_family","taxonomy_genus")])
     combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_genus", by.y = "taxonomy_genus")
   }
   else if (mylevel == "Family"){
     names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_family"
-    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", "taxonomy_family")])
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "Family", 
+                                               "taxonomy_phylum", "taxonomy_class", "taxonomy_order","taxonomy_family")])
     combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_family", by.y = "taxonomy_family")
   }
   else if (mylevel == "Order"){
     names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_order"
-    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", "taxonomy_order")])
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "Order", 
+                                               "taxonomy_phylum", "taxonomy_class","taxonomy_order")])
     combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_order", by.y = "taxonomy_order")
   }
   else if (mylevel == "Class"){
     names(combined_data)[names(combined_data) == "Var1"] <- "taxonomy_class"
-    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class", "taxonomy_class")])
+    otu_map_reduced.df <- unique(otu_map.df[,c("Domain","Phylum", "Class",
+                                               "taxonomy_phylum","taxonomy_class")])
     combined_data <- merge(combined_data, otu_map_reduced.df, by.x = "taxonomy_class", by.y = "taxonomy_class")
   }
   else if (mylevel == "Phylum"){
