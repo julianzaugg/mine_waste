@@ -63,19 +63,26 @@ rownames(metadata.df) <- metadata.df$Index
 # Load the OTU - taxonomy mapping file
 otu_taxonomy_map.df <- read.csv("Result_tables/combined/other/combined_otu_taxonomy_map.csv", header = T)
 
-# Load the genus data.
+# Load the genus and class data.
 genus_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+class_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Class_counts_abundances_and_metadata.csv",header = T)
 
 # Remove unknown commodities
 genus_data.df <- subset(genus_data.df, Commodity != "Unknown")
-
+class_data.df <- subset(class_data.df, Commodity != "Unknown")
 
 # Summarise the genus data for each study_accession
 genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df, taxa_column = "taxonomy_genus", group_by_columns = c("Commodity", "study_accession"))
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df, taxa_column = "taxonomy_class", group_by_columns = c("Commodity", "study_accession"))
 
 # Get the top 10 genera for each study_accession
 genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance", my_top_n = 10)
+class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance", my_top_n = 10)
+
+# Generate table
+# For genera
 top_10_genera.df <- melt(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
 names(top_10_genera.df) <- "Genus"
 top_10_genera.df$Genus_silva_format <- top_10_genera.df$Genus
@@ -86,13 +93,32 @@ top_10_genera.df$Genus_silva_format <- gsub("o__", "D_3__", top_10_genera.df$Gen
 top_10_genera.df$Genus_silva_format <- gsub("f__", "D_4__", top_10_genera.df$Genus_silva_format)
 top_10_genera.df$Genus_silva_format <- gsub("g__", "D_5__", top_10_genera.df$Genus_silva_format)
 
+# For class
+top_10_class.df <- melt(unique(class_taxa_summary_filtered.df$taxonomy_class))
+names(top_10_class.df) <- "Class"
+top_10_class.df$Class_silva_format <- top_10_class.df$Class
+top_10_class.df$Class_silva_format <- gsub("d__", "D_0__", top_10_class.df$Class_silva_format)
+top_10_class.df$Class_silva_format <- gsub("p__", "D_1__", top_10_class.df$Class_silva_format)
+top_10_class.df$Class_silva_format <- gsub("c__", "D_2__", top_10_class.df$Class_silva_format)
+# top_10_class.df$Class_silva_format <- gsub("o__", "D_3__", top_10_class.df$Class_silva_format)
+# top_10_class.df$Class_silva_format <- gsub("f__", "D_4__", top_10_class.df$Class_silva_format)
+# top_10_class.df$Class_silva_format <- gsub("g__", "D_5__", top_10_class.df$Class_silva_format)
+
+
 # Write the lsit of top 10 genera to file
 write.csv(top_10_genera.df, 
           file = "Result_tables/combined/other/combined_study_accession_top_10_genera.csv",
           row.names = F,
           quote = F)
 
-# The above list was used to randomly select 5 representatives for each genera from the SILVA database,
+write.csv(top_10_class.df, 
+          file = "Result_tables/combined/other/combined_study_accession_top_10_class.csv",
+          row.names = F,
+          quote = F)
+
+
+
+# The above list was used to randomly select 1-5 representatives for each genera/class from the SILVA database,
 # specifically using the following files:
 # taxonomy/16S_only/97/majority_taxonomy_7_levels.txt
 # rep_set_aligned/97/97_alignment.fna
@@ -101,13 +127,16 @@ write.csv(top_10_genera.df,
 mytree <- read_tree("Additional_results/SILVA_extract/SILVA_genera_1_representatives_cleaned_fasttree.newick")
 write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_genera_1_representatives_cleaned_fasttree_ladderized.newick")
 
+mytree <- read_tree("Additional_results/SILVA_extract/SILVA_class_1_representatives_cleaned_fasttree.newick")
+write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_class_1_representatives_cleaned_fasttree_ladderized.newick")
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 # Now we load can load the summary table generated from this and use to 
 # generate the iTOL table for tree visualisation
-top_genus_silva_summary.df <- read.table("Additional_results/SILVA_extract/genera_1_rep_summary.tsv", sep = "\t", header = T)
 
-# top_10_genera.df$Genus[!top_10_genera.df$Genus %in% top_genus_silva_summary.df$taxonomy_genus]
+# GENUS
+top_genus_silva_summary.df <- read.table("Additional_results/SILVA_extract/genera_1_rep_summary.tsv", sep = "\t", header = T)
 
 # We need to determine the presence absence of each genera in each Commodity, Sample treatment and Sample type
 head(top_genus_silva_summary.df)
@@ -177,7 +206,7 @@ itol_data.df$Genus_colour <- as.character(lapply(as.character(itol_data.df$taxon
 # Reorder for ease of use
 # itol_data.dfgrep("taxonomy_", names(itol_data.df), value = T)
 
-write.csv(itol_data.df, "Result_tables/combined/other/itol_silva_metadata.csv", quote = F, row.names = F)
+write.csv(itol_data.df, "Result_tables/combined/other/itol_silva_genus_metadata.csv", quote = F, row.names = F)
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1151,7 +1151,7 @@ length(unique(temp$run_accession))
 commodity_summary.df <- temp %>% group_by(Commodity) %>% summarise(N_projects = n_distinct(study_accession), 
                                            N_samples = n_distinct(Index),
                                            N_sample_types = n_distinct(Sample_type),
-                                           N_sample_treaments = n_distinct(Sample_treatment)) %>% as.data.frame()
+                                           N_sample_treatments = n_distinct(Sample_treatment)) %>% as.data.frame()
 write.csv(commodity_summary.df, file = "Result_tables/combined/various_summary_tables/commodity_summary.csv", row.names = F, quote = F)
 
 study_summary.df <- temp %>% group_by(study_accession) %>% summarise(Commodity = unique(Commodity), 
@@ -1160,11 +1160,15 @@ study_summary.df <- temp %>% group_by(study_accession) %>% summarise(Commodity =
                                                                      Final_16S_region = unique(Final_16S_region),
                                                                      N_samples = n_distinct(Index),
                                                                      N_sample_types = n_distinct(Sample_type),
-                                                                     N_sample_treaments = n_distinct(Sample_treatment)) %>% 
+                                                                     N_sample_treatments = n_distinct(Sample_treatment)) %>% 
   arrange(Final_16S_region) %>%
   as.data.frame()
 write.csv(study_summary.df, file = "Result_tables/combined/various_summary_tables/study_accession_summary.csv", row.names = F, quote = F)
 
+region_summary.df <- temp %>% group_by(Final_16S_region) %>% summarise(N_samples = n_distinct(Index), 
+                                                                       N_study_accessions = n_distinct(study_accession),
+                                                                       N_commodities  = n_distinct(Commodity) ) %>% as.data.frame()
+write.csv(region_summary.df, file = "Result_tables/combined/various_summary_tables/region_summary.csv", row.names = F, quote = F)
 
 for (tax_level in c("Phylum", "Class", "Order", "Family", "Genus", "OTU")){
   write.csv(x = combine_dataframes("Result_tables",paste0("P.*_",tax_level,"_counts_abundances_and_metadata.csv")), 

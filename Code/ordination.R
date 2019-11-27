@@ -996,7 +996,7 @@ write.csv(otu_genus_clr_euclidean_distances.m, file = "Result_tables/combined/st
 write.csv(otu_genus_hellinger_bray_distances.m, file = "Result_tables/combined/stats_various/genus_hellinger_transformed_bray_distance_matrix.csv", quote = F, row.names = F)
 
 # Write PRIMER formatted metadata
-primer_metadata.df <- metadata.df[c("Index", "Commodity","study_accession", "Sample_treatment","Sample_type")]
+primer_metadata.df <- metadata.df[c("Index", "Commodity","study_accession", "Sample_treatment","Sample_type", "Final_16S_region")]
 write.csv(primer_metadata.df, "Result_tables/combined/stats_various/primer_metadata.csv", quote = F, row.names = F)
 
 # clr euclidean

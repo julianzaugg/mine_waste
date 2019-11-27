@@ -17,13 +17,12 @@ detachAllPackages <- function() {
 detachAllPackages()
 library(vegan)
 library(reshape2)
-library(dplyr)
 library(ggplot2)
+library(dplyr)
+
 # library(FSA)
 library(phyloseq)
 # library(nlme)
-
-source("Code/helper_functions.R")
 
 common_theme <- theme(
   panel.border = element_blank(), 
@@ -48,6 +47,7 @@ common_theme <- theme(
   plot.title = element_text(size = 8))
 
 setwd("/Users/julianzaugg/Desktop/ACE/major_projects/mine_waste/analysis/")
+source("Code/helper_functions.R")
 
 # Load the processed metadata
 metadata.df <- read.csv("Result_tables/combined/other/combined_processed_metadata.csv", sep =",", header = T)
@@ -94,6 +94,7 @@ otu_class_rare_alpha.df <- estimate_richness(otu_class_rare_phyloseq, measures =
 otu_class_rare_alpha.df <- otu_class_rare_alpha.df[rownames(metadata.df),]
 
 # Combine with metadata
+
 otu_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_rare_alpha.df, "Index"), by = "Index")
 otu_genus_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_genus_rare_alpha.df, "Index"), by = "Index")
 otu_class_rare_alpha.df <- left_join(metadata.df[c("Index", "study_accession", "Commodity", "Sample_treatment","Sample_type")],m2df(otu_class_rare_alpha.df, "Index"), by = "Index")
@@ -111,6 +112,9 @@ write.csv(otu_class_rare_alpha.df,
 
 
 discrete_variables <- c("Commodity","Sample_type","Sample_treatment","study_accession")
+
+summarise_alpha_diversities(otu_rare_alpha.df, "Commodity")
+otu_rare_alpha.df %>% dplyr::group_by(Commodity) %>% dplyr::summarise(Shannon_Mean =mean(Shannon))
 
 for (myvar in discrete_variables){
   write.csv(summarise_alpha_diversities(otu_rare_alpha.df, myvar), 

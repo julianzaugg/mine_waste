@@ -485,3 +485,364 @@ write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_s
 phylum_taxa_summary.df <- generate_taxa_summary(mydata = phylum_data.df,taxa_column = "taxonomy_phylum",group_by_columns = c("Commodity"))
 phylum_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = phylum_taxa_summary.df, grouping_variables = c("Commodity"),abundance_column = "Mean_relative_abundance",my_top_n = 10)
 write.csv(phylum_taxa_summary_filtered.df, file = "Result_tables/combined/taxa_summary_tables/Commodity_phylum_top_10.csv",row.names = F, quote = F)
+
+
+# ------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+# Class level using SILVA representative tree
+# This requires removing anything, i.e. "Unassigned" classes, from the summary. Basically anything not in tree should not be included
+library(phyloseq)
+source("Code/helper_functions.R")
+
+# Load data
+class_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Class_counts_abundances_and_metadata.csv",header = T)
+
+# Remove unknown commodities
+class_data.df <- subset(class_data.df, Commodity != "Unknown")
+
+# Load tree and summary table for leaves
+mytree <- read_tree("Additional_results/SILVA_extract/SILVA_class_1_representatives_cleaned_fasttree_ladderized.newick")
+mytree_summary.df <- read.table("Additional_results/SILVA_extract/class_1_rep_summary.tsv", sep = "\t", header = T)
+rownames(mytree_summary.df) <- mytree_summary.df$Accession
+
+# Change the leaf names to the taxonomy label (label needs to match that in heatmap)
+mytree$tip.label <- as.character(lapply(mytree$tip.label, function(x) as.character(mytree_summary.df[x,]$taxonomy_class)))
+
+# Root the tree
+mytree <- root(mytree,outgroup = "d__Bacteria;p__WPS-2;c__uncultured bacterium",resolve.root = T,node = NULL) # Root the tree
+# is.rooted(multi2di(mytree))
+# mytree$root.edge <- 0
+
+
+# Make tree ultrametric
+mytree <- chronos(mytree) 
+plot(mytree, type="cladogram")
+is.ultrametric(mytree)
+is.binary.tree(mytree)
+is.rooted(mytree)
+mytree <- hclust(dist(cophenetic(mytree)))
+# mytree <- as.hclust.phylo(mytree) # convert to hclust object
+mytree$order
+mytree$labels
+mytree$labels[mytree$order]
+
+
+# mytree$root.edge <- 0
+# write.tree(as.phylo(mytree),file = "test.newick")
+
+# Generate taxonomy summary for commodity and study
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity", "study_accession"))
+
+# Get top taxa by mean abundance
+class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+# Remove taxa not represented by the tree
+# class_taxa_summary_filtered.df could be replaced with class_taxa_summary.df
+class_taxa_summary_filtered_removed.df <- class_taxa_summary_filtered.df[!class_taxa_summary_filtered.df$taxonomy_class %in% mytree_summary.df$taxonomy_class,]
+class_taxa_summary_filtered.df <- class_taxa_summary_filtered.df[class_taxa_summary_filtered.df$taxonomy_class %in% mytree_summary.df$taxonomy_class,]
+length(unique(class_taxa_summary_filtered.df$taxonomy_class))
+length(mytree$labels)
+
+# Generate matrix for heatmap
+heatmap.m <- class_taxa_summary.df[c("study_accession", "taxonomy_class","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+Heatmap(matrix = heatmap.m*100, 
+        row_names_gp = gpar(fontsize = 4),
+        cluster_rows = as.dendrogram(mytree),
+        cluster_columns = F,
+        row_dend_reorder=F,
+        cluster_row_slices = F,
+        show_row_names=T,
+        )
+# plot(as.dendrogram(mytree))
+Heatmap(row_order = )
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_silva_tree_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Class",
+             plot_height = 7,
+             plot_width = 13,
+             cluster_columns = F,
+             cluster_rows = F,
+             row_order=mytree$labels[mytree$order],
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm"),
+             simple_anno_size = unit(.25, "cm")
+)
+
+make_heatmap(((heatmap.m > 0) + 0),
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_class_top_10_silva_tree_presence_absence_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Class",
+             plot_height = 7,
+             plot_width = 13,
+             cluster_columns = F,
+             cluster_rows = mytree,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             my_palette = c("white", "darkred"),
+             legend_labels = c("Absent" ,"Present"),
+             # legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0,1),
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm"),
+             simple_anno_size = unit(.25, "cm")
+)
+
+
+class_taxa_summary.df <- generate_taxa_summary(mydata = class_data.df,taxa_column = "taxonomy_class",group_by_columns = c("Commodity"))
+# class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, 
+#                                                           grouping_variables = c("Commodity"),
+#                                                           abundance_column = "Mean_relative_abundance",
+#                                                           my_top_n = 10)
+
+# Remove taxa not represented by the tree
+class_taxa_summary_filtered_removed.df <- class_taxa_summary_filtered.df[!class_taxa_summary_filtered.df$taxonomy_class %in% mytree_summary.df$taxonomy_class,]
+class_taxa_summary_filtered.df <- class_taxa_summary.df[class_taxa_summary.df$taxonomy_class %in% mytree_summary.df$taxonomy_class,]
+length(unique(class_taxa_summary_filtered.df$taxonomy_class))
+length(mytree$labels)
+
+heatmap.m <- class_taxa_summary.df[c("Commodity", "taxonomy_class","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_class %in% class_taxa_summary_filtered.df$taxonomy_class,]
+heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity","Commodity_colour"), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_class_top_10_silva_tree_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity"),
+             column_title = "Commodity",
+             row_title = "Class",
+             plot_height = 7,
+             plot_width = 7,
+             cluster_columns = T,
+             cluster_rows = mytree,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 0,
+             my_annotation_palette = my_colour_palette_15,
+             #my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+# Genus level using SILVA representative tree
+# This requires removing anything, i.e. "Unassigned" classes, from the summary. Basically anything not in tree should not be included
+library(phyloseq)
+
+# Load data
+genus_data.df <- read.csv("Result_tables/combined/combined_counts_abundances_and_metadata_tables/combined_Genus_counts_abundances_and_metadata.csv",header = T)
+
+# Remove unknown commodities
+genus_data.df <- subset(genus_data.df, Commodity != "Unknown")
+
+# Load tree and summary table for leaves
+mytree <- read_tree("Additional_results/SILVA_extract/SILVA_genus_1_representatives_cleaned_fasttree_ladderized.newick")
+mytree_summary.df <- read.table("Additional_results/SILVA_extract/genus_1_rep_summary.tsv", sep = "\t", header = T)
+
+rownames(mytree_summary.df) <- mytree_summary.df$Accession
+# Change the leaf names to the taxonomy label (label needs to match that in heatmap)
+mytree$tip.label <- as.character(lapply(mytree$tip.label, function(x) as.character(mytree_summary.df[x,]$taxonomy_genus)))
+
+mytree <- root(mytree,outgroup = "d__Bacteria;p__WPS-2;c__uncultured bacterium;o__uncultured bacterium;f__uncultured bacterium;g__uncultured bacterium",resolve.root = T) # Root the tree
+mytree <- chronos(mytree) # make tree ultrametric
+is.ultrametric(mytree)
+is.binary.tree(mytree)
+is.rooted(mytree)
+mytree <- as.hclust.phylo(mytree) # convert to hclust object
+
+# Generate taxonomy summary for commodity and study
+genus_taxa_summary.df <- generate_taxa_summary(mydata = genus_data.df,taxa_column = "taxonomy_genus",group_by_columns = c("Commodity", "study_accession"))
+
+# Get top taxa by mean abundance
+genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+# Remove taxa not represented by the tree
+genus_taxa_summary_filtered_removed.df <- genus_taxa_summary_filtered.df[!genus_taxa_summary_filtered.df$taxonomy_genus %in% mytree_summary.df$taxonomy_genus,]
+genus_taxa_summary_filtered.df <- genus_taxa_summary_filtered.df[genus_taxa_summary_filtered.df$taxonomy_genus %in% mytree_summary.df$taxonomy_genus,]
+
+
+# Generate matrix for heatmap
+heatmap.m <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_genus_top_10_silva_tree_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Genus",
+             plot_height = 20,
+             plot_width = 17,
+             cluster_columns = F,
+             cluster_rows = mytree,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm"),
+             simple_anno_size = unit(.25, "cm")
+)
+
+# Make heatmap for the removed taxa
+
+heatmap.m <- genus_taxa_summary.df[c("study_accession", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered_removed.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(study_accession, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity", "study_accession","Sample_type","Sample_treatment","Final_16S_region", 
+                                             "Primers_for_16S_samples_from_manually_checking_database_or_publication",
+                                             "Top_region_from_BLAST_raw_combined",
+                                             grep("colour", names(metadata.df), value =T)), drop = F])
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Primers_for_16S_samples_from_manually_checking_database_or_publication"] <- "Published_16S_region"
+names(heatmap_metadata.df)[names(heatmap_metadata.df) == "Top_region_from_BLAST_raw_combined"] <- "Inferred_16S_region"
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$study_accession
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Study_accession_genus_removed_top_10_silva_tree_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity","Sample_type","Sample_treatment", "Published_16S_region", "Inferred_16S_region", "Final_16S_region"),
+             column_title = "Study accession",
+             row_title = "Genus",
+             plot_height = 5,
+             plot_width = 14,
+             cluster_columns = F,
+             cluster_rows = F,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 6,
+             my_annotation_palette = my_colour_palette_15,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm"),
+             simple_anno_size = unit(.25, "cm")
+)
+
+
+# For commodity
+
+# Get top taxa by mean abundance
+genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_taxa_summary.df, 
+                                                          grouping_variables = c("Commodity", "study_accession"),
+                                                          abundance_column = "Mean_relative_abundance",
+                                                          my_top_n = 10)
+
+# Remove taxa not represented by the tree
+genus_taxa_summary_filtered_removed.df <- genus_taxa_summary_filtered.df[!genus_taxa_summary_filtered.df$taxonomy_genus %in% mytree_summary.df$taxonomy_genus,]
+genus_taxa_summary_filtered.df <- genus_taxa_summary.df[genus_taxa_summary.df$taxonomy_genus %in% mytree_summary.df$taxonomy_genus,]
+length(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
+length(mytree$labels)
+
+heatmap.m <- genus_taxa_summary.df[c("Commodity", "taxonomy_genus","Mean_relative_abundance")]
+heatmap.m <- heatmap.m[heatmap.m$taxonomy_genus %in% genus_taxa_summary_filtered.df$taxonomy_genus,]
+heatmap.m <- heatmap.m %>% spread(Commodity, Mean_relative_abundance,fill = 0)
+
+heatmap.m <- df2matrix(heatmap.m)
+heatmap_metadata.df <- unique(metadata.df[,c("Commodity","Commodity_colour"), drop = F])
+heatmap_metadata.df <- subset(heatmap_metadata.df, Commodity != "Unknown")
+rownames(heatmap_metadata.df) <- heatmap_metadata.df$Commodity
+
+make_heatmap(heatmap.m*100, 
+             mymetadata = heatmap_metadata.df,
+             filename = paste0("Result_figures/combined/heatmaps/Commodity_genus_top_10_silva_tree_mean_relative_abundance_heatmap.pdf"),
+             variables = c("Commodity"),
+             column_title = "Commodity",
+             row_title = "Genus",
+             plot_height = 7,
+             plot_width = 7,
+             cluster_columns = T,
+             cluster_rows = mytree,
+             column_title_size = 10,
+             row_title_size = 10,
+             annotation_name_size = 0,
+             my_annotation_palette = my_colour_palette_15,
+             #my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,1,.1))*100,
+             legend_labels = c(c(0, 0.001, 0.005,0.05, seq(.1,.5,.1))*100, "> 60"),
+             my_breaks = c(0, 0.001, 0.005,0.05, seq(.1,.6,.1))*100,
+             discrete_legend = T,
+             show_row_dend = T,
+             legend_title = "Mean relative abundance %",
+             palette_choice = 'purple',
+             row_dend_width = unit(3, "cm")
+)
+
+
+
+
+
+
+

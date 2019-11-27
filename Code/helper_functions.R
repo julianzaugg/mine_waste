@@ -801,7 +801,7 @@ calculate_alpha_diversity_significance <- function(mydata, variable){
 summarise_alpha_diversities <- function(mydata, group_by_columns){
   summary.df <- mydata %>% 
     dplyr::group_by_(.dots = c(group_by_columns)) %>%
-    summarise(Shannon_Mean =mean(Shannon),
+    dplyr::summarise(Shannon_Mean =mean(Shannon),
               Shannon_Stdev=sd(Shannon),
               Shannon_Max=max(Shannon), 
               Shannon_Min=min(Shannon), 
