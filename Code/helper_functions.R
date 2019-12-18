@@ -1,14 +1,45 @@
+# Uncomment and run to install the libraries that might be needed 
+# install.packages("ggplot2")
+# install.packages("plyr")
+# install.packages("dplyr")
+# install.packages("tidyr")
+# install.packages("RColorBrewer")
+# install.packages("vegan")
+# install.packages("reshape2")
+# install.packages("gplots")
+# install.packages("heatmap3")
+# install.packages("ggfortify")
+# install.packages("scales")
+# install.packages("seqinr")
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+# install.packages("BiocManager")
+# BiocManager::install("decontam")
+# library(decontam)
+
+# install.packages("devtools") #Installs devtools (if not already installed)
+# devtools::install_github("donaldtmcknight/microDecon") #Installs microDecon
+# library(microDecon)
+
+# BiocManager::install("DESeq2")
+library(DESeq2)
+
+# BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+
 library(ggplot2)
 library(plyr)
 library(dplyr)
 library(tidyr)
 library(RColorBrewer)
-# library(vegan)
+library(vegan)
 library(reshape2)
-# library(gplots)
-# library(pheatmap)
+library(gplots)
 library(grid)
-library(ComplexHeatmap)
+library(phyloseq)
+library(seqinr) # For writing fasta files
+
+
 
 
 ####################################
@@ -143,10 +174,12 @@ filter_summary_to_top_n <- function(taxa_summary, grouping_variables, abundance_
 }
 
 
+# ---------------------------------------------------------------------------------------------------------
+
 generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palette, limits = NULL, filename = NULL, include_legend = T, add_spider = F, add_ellipse = F,
                          point_alpha = 1, plot_width = 10, plot_height=10, point_size = 0.8, point_line_thickness = 1,
                          label_sites = F, label_species = F,
-                         legend_x = NULL, legend_y = NULL, legend_x_offset = 0, legend_y_offset = 0,
+                         legend_x = NULL, legend_y = NULL, legend_x_offset = 0, legend_y_offset = 0,title_cex = 1,
                          legend_cex = 0.6,
                          plot_spiders = NULL, plot_ellipses = NULL,plot_hulls = NULL, legend_cols = 2, legend_title = NULL,
                          label_ellipse = F, ellipse_label_size = 0.5, ellipse_border_width = 1,variable_colours_available = F, 
@@ -246,6 +279,8 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   # Order the site scores by the order of the rows in the metadata
   # print(dim(pca_site_scores))
   # print(dim(metadata_ordered.df))
+  # print(head(pca_site_scores))
+  # print(head(pca_site_scores))
   pca_site_scores <- pca_site_scores[rownames(metadata_ordered.df),]
   
   all_sample_colours <- as.character(
@@ -325,7 +360,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
                offset = arrow_label_offset,
                col = alpha(arrow_label_colour,1),
                font = arrow_label_font_type)
-          }
+        }
       } else{
         for (tv in top_vars.v){
           text(x = pca_specie_scores[tv,1] * arrow_scalar,
@@ -342,8 +377,8 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
         }
       }
     }
-
-
+    
+    
   }
   if (plot_arrows == T){
     plot_arrows_func()
@@ -477,7 +512,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   }
   
   if (!is.null(plot_title)){
-    title(main = plot_title)
+    title(main = plot_title, cex.main = title_cex)
   }
   
   if (include_legend){
@@ -514,15 +549,77 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
 }
 
 
+calculate_PC_taxa_contributions <- function(pca_object){
+  # Calculate the percentage contribution from each taxa for PC1-3. Requires unscaled values that are squared
+  pc1_contribution <- melt(round(100*scores(pca_object, display = "species", scaling = 0)[,1]^2, 3),value.name = "PC1_contribution_percentage")
+  pc2_contribution <- melt(round(100*scores(pca_object, display = "species", scaling = 0)[,2]^2, 3),value.name = "PC2_contribution_percentage")
+  pc3_contribution <- melt(round(100*scores(pca_object, display = "species", scaling = 0)[,2]^2, 3),value.name = "PC3_contribution_percentage")
+  
+  data.frame(pc1_contribution, pc2_contribution, pc3_contribution)
+}
+
+calculate_PC_abundance_correlations <- function(pca_object, mydata.df, taxa_column, variables = NULL){
+  # pca_object <- genus_pca
+  # mydata.df <- genus_data.df
+  # taxa_column <-  "taxonomy_genus"
+  # variables <- discrete_variables
+  
+  # Assume "Sample" and taxa_column are in mydata.df
+  # mydata.df should be the combined table from the specific taxa level
+  taxa_contributions <- calculate_PC_taxa_contributions(pca_object)
+  
+  # PC scores for each sample (site)
+  pca_site_scores <- m2df(scores(pca_object, display = "sites"),"Sample") # These will be scaled scores!
+  pca_species_scores <- m2df(scores(pca_object, display = "species"),taxa_column) # These will be scaled scores!
+  
+  # Filter to taxonomy in pca object (because we have filtered during the PCA calculations)
+  abundance_pc_scores.df <- subset(mydata.df, get(taxa_column) %in% rownames(pca_object$CA$v))
+  abundance_pc_scores.df <- left_join(abundance_pc_scores.df, pca_site_scores, by = "Sample")
+  abundance_pc_scores.df <- abundance_pc_scores.df[,c("Sample","Relative_abundance", variables,taxa_column, "PC1", "PC2")]
+  
+  # Filter out entries where there are no PC scores
+  abundance_pc_scores.df <- abundance_pc_scores.df[!is.na(abundance_pc_scores.df$PC1),]
+  abundance_pc_scores.df$Relative_abundance <- abundance_pc_scores.df$Relative_abundance*100
+  
+  # Calculate the correlation between the abundances for each taxa and the PC1 and PC2 scores
+  abundance_pc_correlations.df <- 
+    abundance_pc_scores.df %>% 
+    dplyr::group_by_(taxa_column) %>% dplyr::summarise(Pearson_PC1 = cor(PC1, Relative_abundance, method = "pearson"),
+                                                       Pearson_PC2 = cor(PC2, Relative_abundance, method = "pearson"),
+                                                       Spearman_PC1 = cor(PC1, Relative_abundance, method = "spearman"),
+                                                       Spearman_PC2 = cor(PC2, Relative_abundance, method = "spearman"), 
+                                                       N_Samples = n_distinct(Sample)) %>% 
+    # filter(N_Samples >= 5) %>% 
+    arrange(desc(abs(Pearson_PC1))) %>%
+    as.data.frame()
+  
+  # Combine the correlation table with the PCA specie scores
+  abundance_pc_correlations.df <- left_join(abundance_pc_correlations.df, pca_species_scores, by = taxa_column)
+  
+  
+  # Add percentage contributions
+  abundance_pc_correlations.df$PC1_contribution_percentage <- as.numeric(lapply(abundance_pc_correlations.df[,taxa_column],  
+                                                                                function(x) taxa_contributions[x,]$PC1_contribution_percentage))
+  abundance_pc_correlations.df$PC2_contribution_percentage <- as.numeric(lapply(abundance_pc_correlations.df[,taxa_column],  
+                                                                                function(x) taxa_contributions[x,]$PC2_contribution_percentage))
+  abundance_pc_correlations.df$PC3_contribution_percentage <- as.numeric(lapply(abundance_pc_correlations.df[,taxa_column], 
+                                                                                function(x) taxa_contributions[x,]$PC3_contribution_percentage))
+  abundance_pc_correlations.df
+}
+# ---------------------------------------------------------------------------------------------------------
+
 # Function to create heatmap
 make_heatmap <- function(myheatmap_matrix,
                          mymetadata,
-                         filename,
-                         my_row_labels = NULL,
-                         height = 10,
-                         width = 10,
-                         heatmap_height = 10,
-                         heatmap_width = 10,
+                         filename= NULL,
+                         #...,
+                         # Dataframe with two columns. First must match row entry, second the new label
+                         my_row_labels = NULL, 
+                         my_col_labels = NULL, # Same as my_row_labels, though with columns
+                         height = 10, # Not currently used
+                         width = 10, # Not currently used
+                         heatmap_height = 10, # Not currently used
+                         heatmap_width = 10, # Not currently used
                          plot_height =10,
                          plot_width =10,
                          column_title_size = 10,
@@ -544,16 +641,24 @@ make_heatmap <- function(myheatmap_matrix,
                          show_column_dend = F,
                          show_row_dend = F,
                          do_not_order = F,
-                         ...
-){
+                         show_cell_values = F,
+                         # If show_cell_values =T, cells less than this will have a black font colour
+                         # and above white
+                         cell_fun_value_col_threshold = 15,
+                         my_cell_fun = NULL,
+                         ...){
+  # print(list(...))
+  argList<-list(...) # argument list for checking unspecified optional parameters
+  # print(argList$cell_fun)
+  # return(1)
   
   # Assign internal objects
   internal_heatmap_matrix.m <- myheatmap_matrix
   internal_metadata.df <- mymetadata
   # Order/filter the heatmap matrix to order/entries of metadata
-  internal_heatmap_matrix.m <- internal_heatmap_matrix.m[,rownames(internal_metadata.df)]
+  internal_heatmap_matrix.m <- internal_heatmap_matrix.m[,rownames(internal_metadata.df),drop = F]
   # Order the heatmap matrix by the variables
-  internal_heatmap_matrix.m <- internal_heatmap_matrix.m[,do.call(order, internal_metadata.df[,variables,drop=F])]
+  internal_heatmap_matrix.m <- internal_heatmap_matrix.m[,do.call(order, internal_metadata.df[,variables,drop=F]),drop =F]
   # Order the metadata by the variables
   internal_metadata.df <- internal_metadata.df[do.call(order, internal_metadata.df[,variables,drop=F]),,drop=F]
   # Create metadata just containing the variables
@@ -564,7 +669,6 @@ make_heatmap <- function(myheatmap_matrix,
   }
   
   # Create annotations
-  
   colour_lists <- list()
   for (myvar in variables){
     var_colour_name <- paste0(myvar, "_colour")
@@ -606,6 +710,8 @@ make_heatmap <- function(myheatmap_matrix,
                           simple_anno_size = simple_anno_size,
                           annotation_name_gp = gpar(fontsize = annotation_name_size))
   
+  # TODO - add option for row annotation
+  
   if (is.null(my_palette)){
     if (is.null(palette_choice)) {palette_choice <- "blue"}
     if (!palette_choice %in% c("blue", "purple","red")) { palette_choice <- "blue"}
@@ -632,14 +738,31 @@ make_heatmap <- function(myheatmap_matrix,
   
   my_row_labels.v = rownames(internal_heatmap_matrix.m)
   if (!is.null(my_row_labels)){
-    my_row_labels.v <- as.character(lapply(my_row_labels.v, function(x) as.character(row_labels.df[row_labels.df[,1] == x,][,2])))
+    my_row_labels.v <- as.character(lapply(my_row_labels.v, function(x) as.character(my_row_labels[my_row_labels[,1] == x,][,2])))
   }
+  my_col_labels.v = colnames(internal_heatmap_matrix.m)
+  if (!is.null(my_col_labels)){
+    my_col_labels.v <- as.character(lapply(my_col_labels.v, function(x) as.character(my_col_labels[my_col_labels[,1] == x,][,2])))
+  }
+  
   if (do_not_order != T){
     # Order the heatmap rows by the row labels names
     internal_heatmap_matrix.m <- internal_heatmap_matrix.m[order(my_row_labels.v),]
     my_row_labels.v <- my_row_labels.v[order(my_row_labels.v)]    
   }
   
+  
+  # if show values and no function provided
+  if (show_cell_values == T & is.null(my_cell_fun)){ 
+    my_cell_fun <- function(j, i, x, y, width, height, fill) {
+      # if(internal_heatmap_matrix.m[i, j] < cell_fun_value_col_threshold & internal_heatmap_matrix.m[i, j] != 0){
+      if(internal_heatmap_matrix.m[i, j] < cell_fun_value_col_threshold){
+        grid.text(sprintf("%.2f", internal_heatmap_matrix.m[i, j]), x, y, gp = gpar(fontsize = 6, col = "black"))}
+      else if(internal_heatmap_matrix.m[i, j] >= cell_fun_value_col_threshold ) {
+        grid.text(sprintf("%.2f", internal_heatmap_matrix.m[i, j]), x, y, gp = gpar(fontsize = 6, col = "white"))
+      }
+    }
+  }
   hm <- Heatmap(matrix = internal_heatmap_matrix.m,
                 
                 top_annotation = ha,
@@ -652,6 +775,7 @@ make_heatmap <- function(myheatmap_matrix,
                 show_heatmap_legend = F,
                 row_names_max_width = unit(35,"cm"),
                 row_labels = my_row_labels.v,
+                column_labels = my_col_labels.v,
                 # row_names_side = "left",
                 # height = unit(height,"cm"),
                 # width = unit(width,"cm"),
@@ -684,6 +808,7 @@ make_heatmap <- function(myheatmap_matrix,
                 # Text appearance
                 row_names_gp = gpar(fontsize = 6),
                 column_names_gp = gpar(fontsize = 6),
+                cell_fun = my_cell_fun,
                 ...
   )
   
@@ -716,13 +841,16 @@ make_heatmap <- function(myheatmap_matrix,
       title = legend_title,
       direction = "vertical",
       border = "black",
-      
     )
   }
   
-  pdf(filename,height=plot_height,width=plot_width)
-  draw(hm, annotation_legend_list = c(hm_legend))
-  dev.off()
+  if (!is.null(filename)){
+    pdf(filename,height=plot_height,width=plot_width)
+    draw(hm, annotation_legend_list = c(hm_legend))
+    dev.off()    
+  }
+  return(list("heatmap" = hm, "legend" = hm_legend))
+  
 }
 
 
@@ -824,3 +952,93 @@ summarise_alpha_diversities <- function(mydata, group_by_columns){
   summary.df
 }
 
+
+run_permanova_custom <- function(my_metadata, my_formula, my_method = "euclidean", permutations = 999, label = NULL){
+  stat_sig_table <- NULL
+  result <- adonis(my_formula,data = my_metadata, permu=permutations,method= my_method)
+  # result <- adonis(my_formula,data = my_metadata, permu=999,method="bray")
+  for (r in rownames(result$aov.tab)){
+    variable <- r
+    Degress_of_freedom <- result$aov.tab[r,]$Df[1]
+    SumOfSqs <- round(result$aov.tab[r,]$SumsOfSqs[1], 3)
+    meanSqs <- round(result$aov.tab[r,]$MeanSqs[1], 3)
+    F.model <- round(result$aov.tab[r,]$F.Model[1], 3)
+    R2 <- round(result$aov.tab[r,]$R2[1], 3)
+    p_value <- round(result$aov.tab[r,]$`Pr(>F)`[1], 5)
+    stat_sig_table <- rbind(stat_sig_table, data.frame(variable,
+                                                       Degress_of_freedom,
+                                                       SumOfSqs,
+                                                       meanSqs,
+                                                       F.model,
+                                                       R2,
+                                                       p_value))
+  }
+  # my_formula_string <- paste0(as.character(my_formula)[2], as.character(my_formula)[1], as.character(my_formula)[3])
+  my_formula_string <- paste0(as.character(my_formula)[1], as.character(my_formula)[3])
+  print(paste0("FORMULA: ", my_formula_string))
+  print(result)
+  names(stat_sig_table) <- c("Term","Df", "SumOfSqs","MeanSqs","F.Model","R2","Pr(>F)")
+  stat_sig_table <- stat_sig_table[order(stat_sig_table$"Pr(>F)"),]
+  stat_sig_table$Method <- my_method
+  stat_sig_table$Formula <- my_formula_string
+  if (!is.null(label)){
+    stat_sig_table$Label <- label
+  }
+  stat_sig_table
+}
+
+
+
+run_permdisp_custom <- function(my_metadata, my_data, my_group, my_method = "euclidean", permutations = 999, label = NULL){
+  stat_sig_table <- NULL
+  dist_matrix <- vegdist(t(my_data), method = my_method)
+  betadisper_object <- with(my_metadata, betadisper(dist_matrix, group = get(my_group)))
+  permutest_results <- permutest(betadisper_object, permutations = permutations, parallel = 2)
+  
+  for (r in rownames(permutest_results$tab)){
+    variable <- r
+    Degrees_of_freedom <- permutest_results$tab[r,]$Df[1]
+    SumOfSqs <- round(permutest_results$tab[r,]$`Sum Sq`[1],3)
+    meanSqs <- round(permutest_results$tab[r,]$`Mean Sq`[1], 3)
+    F.model <- round(permutest_results$tab[r,]$F[1], 3)
+    N_permutations <- permutest_results$tab[r,]$N.Perm[1]
+    p_value <- round(permutest_results$tab[r,]$`Pr(>F)`[1], 5)
+    stat_sig_table <- rbind(stat_sig_table, data.frame(variable,
+                                                       Degrees_of_freedom,
+                                                       SumOfSqs,
+                                                       meanSqs,
+                                                       F.model,
+                                                       N_permutations,
+                                                       p_value))
+  }
+  print(permutest_results)
+  names(stat_sig_table) <- c("Term","Df", "SumOfSqs","MeanSqs","F.Model","Permutations","Pr(>F)")
+  stat_sig_table <- stat_sig_table[order(stat_sig_table$"Pr(>F)"),]
+  stat_sig_table$Method <- my_method
+  stat_sig_table$Group <- my_group
+  if (!is.null(label)){
+    stat_sig_table$Label <- label
+  }
+  stat_sig_table
+}
+
+
+run_anosim_custom <- function(my_metadata, my_data, my_group, my_method = "euclidean", permutations = 999, label = NULL){
+  stat_sig_table <- NULL
+  anosim_object <- with(my_metadata, anosim(x = t(my_data), 
+                                            grouping = get(my_group),
+                                            permutations = permutations,
+                                            distance = my_method,
+                                            parallel = 2))
+  
+  stat_sig_table <- rbind(stat_sig_table, data.frame(my_group,
+                                                     anosim_object$statistic,
+                                                     anosim_object$signif,
+                                                     anosim_object$permutations))
+  names(stat_sig_table) <- c("Variable","R_statistic", "Significance","Permutations")
+  stat_sig_table$Method <- my_method
+  if (!is.null(label)){
+    stat_sig_table$Label <- label
+  }
+  stat_sig_table
+}
