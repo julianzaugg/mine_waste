@@ -428,6 +428,33 @@ my_relabeller_function <- function(my_labels){
 #              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
 #              specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
 #              filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca_transformed.pdf"))
+generate_pca(genus_pca, mymetadata = metadata.df,
+             plot_height = 5, plot_width = 5,
+             legend_x = -9, legend_y = 3,
+             # legend_x = -2, legend_y = 2,
+             point_size = 0, point_line_thickness = 0.3,point_alpha =.7,
+             legend_title = "Commodity",
+             legend_cex = .5,
+             plot_title = "",
+             limits = c(-9,4,-4,3),
+             # limits = c(-2,2,-2,2),
+             plot_spiders = F,
+             plot_ellipses = F,
+             plot_hulls = F,
+             use_shapes = T,
+             ellipse_border_width = .5,
+             include_legend = F,
+             label_ellipse = F, ellipse_label_size = .3,
+             colour_palette = my_colour_palette_15,
+             variable_to_plot = "Commodity", legend_cols = 1,
+             variable_colours_available = T,
+             num_top_species = 3,
+             plot_arrows = T,arrow_alpha = 1, arrow_colour = "grey10",arrow_scalar = 1,arrow_thickness = .75,
+             label_arrows = F, arrow_label_size = .5, arrow_label_colour = "black", arrow_label_font_type = 2,
+             specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
+             file_type = "svg",
+             filename = paste0("Result_figures/combined/ordination/genus_arrows.svg")
+             )
 
 
 generate_pca(genus_pca, mymetadata = metadata.df,
@@ -451,38 +478,11 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Commodity", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
-             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             plot_arrows = F,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = F, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
-             filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.pdf"))
-
-
-generate_pca(genus_rel_pca, mymetadata = metadata.df,
-             plot_height = 5, plot_width = 5,
-             legend_x = -9, legend_y = 3,
-             # legend_x = -2, legend_y = 2,
-             point_size = .7, point_line_thickness = 0.3,point_alpha =.7,
-             legend_title = "Commodity",
-             legend_cex = .5,
-             plot_title = "",
-             # limits = c(-9,4,-4,3),
-             # limits = c(-2,2,-2,2),
-             plot_spiders = F,
-             plot_ellipses = F,
-             plot_hulls = F,
-             use_shapes = T,
-             ellipse_border_width = .5,
-             include_legend = T,
-             label_ellipse = F, ellipse_label_size = .3,
-             colour_palette = my_colour_palette_15,
-             variable_to_plot = "Commodity", legend_cols = 1,
-             variable_colours_available = T,
-             num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
-             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
-             specie_labeller_function = my_relabeller_function,arrow_label_offset = 0,
-             filename = paste0("Result_figures/combined/ordination/Commodity_genus_rel_pca.pdf"))
-
+             file_type = "svg",
+             filename = paste0("Result_figures/combined/ordination/Commodity_genus_pca.svg"))
 
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
@@ -503,10 +503,11 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Sample_type", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
-             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             plot_arrows = F,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = F, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
-             filename = paste0("Result_figures/combined/ordination/Sample_type_genus_pca.pdf"))
+             file_type = "svg",
+             filename = paste0("Result_figures/combined/ordination/Sample_type_genus_pca.svg"))
 
 
 generate_pca(genus_pca, mymetadata = metadata.df,
@@ -528,10 +529,11 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              variable_to_plot = "Sample_treatment", legend_cols = 1,
              variable_colours_available = T,
              num_top_species = 3,
-             plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
-             label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
+             plot_arrows = F,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
+             label_arrows = F, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
-             filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.pdf"))
+             file_type = "svg",
+             filename = paste0("Result_figures/combined/ordination/Sample_treatment_genus_pca.svg"))
 
 generate_pca(genus_pca, mymetadata = metadata.df,
              plot_height = 5, plot_width = 5,
@@ -555,7 +557,8 @@ generate_pca(genus_pca, mymetadata = metadata.df,
              plot_arrows = T,arrow_alpha = .7, arrow_colour = "grey20",arrow_scalar = 1,arrow_thickness = .5,
              label_arrows = T, arrow_label_size = .25, arrow_label_colour = "black", arrow_label_font_type = 1,
              specie_labeller_function = my_relabeller_function,
-             filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.pdf"))
+             file_type = "svg",
+             filename = paste0("Result_figures/combined/ordination/Study_accession_genus_pca.svg"))
 
 
 generate_pca(genus_pca, mymetadata = metadata.df,

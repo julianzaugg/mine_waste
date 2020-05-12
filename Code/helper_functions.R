@@ -189,7 +189,7 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
                          plot_arrows = F, arrow_colour = "black", arrow_alpha = 1,
                          label_arrows=T,arrow_label_size = .5, num_top_species = 5, arrow_scalar = 1,
                          arrow_label_colour = "black", arrow_thickness = .2,arrow_label_font_type = 1,
-                         specie_labeller_function = NULL, arrow_label_offset = 0){
+                         specie_labeller_function = NULL, arrow_label_offset = 0, file_type = "pdf"){
   pca.scores <- try(scores(pca_object, choices=c(1,2,3)))
   if(inherits(pca.scores, "try-error")) {
     return()
@@ -237,6 +237,16 @@ generate_pca <- function(pca_object, mymetadata, variable_to_plot, colour_palett
   
   if (!is.null(filename)){
     pdf(filename, height=plot_height,width=plot_width)  
+    
+  }
+  if (!is.null(filename)){
+    if (file_type == "pdf"){
+      pdf(filename = filename,height = plot_height, width = plot_width)
+    } else if (file_type == "svg"){
+      # Cairo::CairoSVG(file = filename,width = plot_width,height = plot_height)
+      svg(filename = filename,height = plot_height, width = plot_width)
+      # svglite(file = filename,height = plot_height, width = plot_width)
+    }
   }
   
   plot(0,
