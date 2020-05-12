@@ -275,12 +275,12 @@ metadata.df <- metadata.df[grep("(^V4|^V4_)", metadata.df$Final_16S_region),]
 # Remove samples where it was explicit that the ITS region was sequenced
 metadata.df <- subset(metadata.df, region_ITS_targeted == "no")
 
-# Remove samples where it was explicity that the 18S region was targeted
+# Remove samples where it was explicit that the 18S region was targeted
 # metadata.df[metadata.df$region_18S_targeted == "",]$region_18S_targeted <- "no"
 metadata.df <- subset(metadata.df, region_18S_targeted == "no")
 
 # Remove Projects where the Commodity is unknown
-# metadata.df <- subset(metadata.df, Commodity == "unknown")
+metadata.df <- subset(metadata.df, Commodity != "Unknown")
 
 dim(metadata.df)
 length(unique(metadata.df$study_accession))
@@ -304,7 +304,7 @@ rownames(metadata.df) <- metadata.df$Index
 feature_tables_dir <- "data/feature_statistics"
 my_feature_table_files <- list.files(feature_tables_dir)
 
-temp <- gsub("_features_statistics.csv", "", my_feature_table_files)[!gsub("_features_statistics.csv", "", my_feature_table_files) %in% metadata.df$study_accession]
+# temp <- gsub("_features_statistics.csv", "", my_feature_table_files)[!gsub("_features_statistics.csv", "", my_feature_table_files) %in% metadata.df$study_accession]
 # subset(metadata.df, study_accession %in% temp)
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA255485",my_feature_table_files)]
 # my_feature_table_files<- my_feature_table_files[grepl("PRJNA450848",my_feature_table_files)]
@@ -1100,6 +1100,7 @@ summary(unique(processed_metadata.df[c("study_accession", "Top_region_from_BLAST
 summary(unique(processed_metadata.df[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
 summary(unique(processed_metadata.df[c("study_accession", "Final_16S_region")])$Final_16S_region)
 
+
 #processed_metadata.df[processed_metadata.df$Top_region_from_BLAST == "",]
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Top_region_from_BLAST_raw_combined")])$Top_region_from_BLAST_raw_combined)
 summary(unique(subset(processed_metadata.df, Sample_retained == "yes")[c("study_accession", "Primers_for_16S_samples_from_manually_checking_database_or_publication")])$Primers_for_16S_samples_from_manually_checking_database_or_publication)
@@ -1181,6 +1182,43 @@ write.csv(x = combine_dataframes("Result_tables","P.*_QC_summary.csv"),
 
 write.csv(x = unique(combine_dataframes("Result_tables","P.*_otu_taxonomy_map.csv")), 
           file = "Result_tables/combined/other/combined_otu_taxonomy_map.csv", row.names = F, quote = F)
+
+# ------------------------------------------------------------
+# Load full taxonomy map (unfiltered data)
+otu_taxonomy_map.df <- read.csv("Result_tables/combined/other/combined_otu_taxonomy_map.csv", header = T)
+
+# Number of features
+length(unique(otu_taxonomy_map.df$OTU.ID))
+
+# Number of "Unassigned"
+length(unique(subset(otu_taxonomy_map.df, Genus == "Unassigned")$OTU.ID))
+
+# Number of "uncultured"
+# length(unique(otu_taxonomy_map.df[grepl("g__uncultured", otu_taxonomy_map.df$Genus),]$OTU.ID))
+length(unique(otu_taxonomy_map.df[grepl("uncultured", otu_taxonomy_map.df$Genus),]$OTU.ID))
+
+# Now same numbers for features in analysed results (don't include unknown)
+# Get the unique set of features
+temp <- read.csv("Result_tables/combined/count_tables/combined_OTU_counts.csv", header = T) 
+row.names(temp) <- temp$OTU.ID
+temp$OTU.ID <- NULL
+temp <- temp[,as.character(processed_metadata.df[processed_metadata.df$Commodity != "Unknown",]$Index)]
+dim(temp)
+temp <- temp[apply(temp, 1, sum) > 0,]
+temp_otu_map <- subset(otu_taxonomy_map.df, OTU.ID %in% rownames(temp))
+
+# Number of features
+length(unique(temp_otu_map$OTU.ID))
+
+# Number of "Unassigned"
+length(unique(subset(temp_otu_map, Genus == "Unassigned")$OTU.ID))
+
+# Number of uncultured
+# length(unique(otu_taxonomy_map.df[grepl("g__uncultured", otu_taxonomy_map.df$Genus),]$OTU.ID))
+length(unique(temp_otu_map[grepl("uncultured", otu_taxonomy_map.df$Genus),]$OTU.ID))
+
+
+# ------------------------------------------------------------
 
 
 # write.csv(x = combine_dataframes("Result_tables","P.*_most_abundant_unassigned.csv"), 

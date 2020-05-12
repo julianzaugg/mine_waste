@@ -29,6 +29,7 @@ detachAllPackages()
 # 
 # sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
 library(phyloseq)
+# install.packages("phangorn")
 library(phangorn)
 library(DECIPHER)
 library(dada2)
@@ -81,17 +82,19 @@ genus_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = genus_t
 class_taxa_summary_filtered.df <- filter_summary_to_top_n(taxa_summary = class_taxa_summary.df, grouping_variables = c("Commodity", "study_accession"),
                                                           abundance_column = "Mean_relative_abundance", my_top_n = 10)
 
+genus_taxa_summary_filtered.df[grepl("g__Meiothermus", genus_taxa_summary_filtered.df$taxonomy_genus),]
+
 # Generate table
 # For genera
-top_10_genera.df <- melt(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
-names(top_10_genera.df) <- "Genus"
-top_10_genera.df$Genus_silva_format <- top_10_genera.df$Genus
-top_10_genera.df$Genus_silva_format <- gsub("d__", "D_0__", top_10_genera.df$Genus_silva_format)
-top_10_genera.df$Genus_silva_format <- gsub("p__", "D_1__", top_10_genera.df$Genus_silva_format)
-top_10_genera.df$Genus_silva_format <- gsub("c__", "D_2__", top_10_genera.df$Genus_silva_format)
-top_10_genera.df$Genus_silva_format <- gsub("o__", "D_3__", top_10_genera.df$Genus_silva_format)
-top_10_genera.df$Genus_silva_format <- gsub("f__", "D_4__", top_10_genera.df$Genus_silva_format)
-top_10_genera.df$Genus_silva_format <- gsub("g__", "D_5__", top_10_genera.df$Genus_silva_format)
+top_10_genus.df <- melt(unique(genus_taxa_summary_filtered.df$taxonomy_genus))
+names(top_10_genus.df) <- "Genus"
+top_10_genus.df$Genus_silva_format <- top_10_genus.df$Genus
+top_10_genus.df$Genus_silva_format <- gsub("d__", "D_0__", top_10_genus.df$Genus_silva_format)
+top_10_genus.df$Genus_silva_format <- gsub("p__", "D_1__", top_10_genus.df$Genus_silva_format)
+top_10_genus.df$Genus_silva_format <- gsub("c__", "D_2__", top_10_genus.df$Genus_silva_format)
+top_10_genus.df$Genus_silva_format <- gsub("o__", "D_3__", top_10_genus.df$Genus_silva_format)
+top_10_genus.df$Genus_silva_format <- gsub("f__", "D_4__", top_10_genus.df$Genus_silva_format)
+top_10_genus.df$Genus_silva_format <- gsub("g__", "D_5__", top_10_genus.df$Genus_silva_format)
 
 # For class
 top_10_class.df <- melt(unique(class_taxa_summary_filtered.df$taxonomy_class))
@@ -105,9 +108,9 @@ top_10_class.df$Class_silva_format <- gsub("c__", "D_2__", top_10_class.df$Class
 # top_10_class.df$Class_silva_format <- gsub("g__", "D_5__", top_10_class.df$Class_silva_format)
 
 
-# Write the lsit of top 10 genera to file
-write.csv(top_10_genera.df, 
-          file = "Result_tables/combined/other/combined_study_accession_top_10_genera.csv",
+# Write the list of top 10 genera to file
+write.csv(top_10_genus.df, 
+          file = "Result_tables/combined/other/combined_study_accession_top_10_genus.csv",
           row.names = F,
           quote = F)
 
@@ -116,6 +119,19 @@ write.csv(top_10_class.df,
           row.names = F,
           quote = F)
 
+temp <- read.csv("Result_tables/combined/other/combined_study_accession_top_10_genus.csv", header = T)
+temp <- separate(temp, Genus,
+                 into = c("Domain", "Phylum", "Class", "Order","Family", "Genus"),sep = ";",remove = T)
+temp$taxonomy_genus <- with(temp, paste(Domain, Phylum, Class, Order, Family,Genus, sep =";"))
+temp$taxonomy_family <- with(temp, paste(Domain, Phylum, Class, Order, Family, sep =";"))
+temp$taxonomy_order <- with(temp, paste(Domain, Phylum, Class, Order, sep =";"))
+temp$taxonomy_class <- with(temp, paste(Domain, Phylum, Class, sep =";"))
+temp$taxonomy_phylum <- with(temp, paste(Domain, Phylum, sep =";"))
+length(unique(temp$taxonomy_phylum))
+length(unique(temp$taxonomy_class))
+length(unique(temp$taxonomy_order))
+length(unique(temp$taxonomy_family))
+length(unique(temp$taxonomy_genus))
 
 
 # The above list was used to randomly select 1-5 representatives for each genera/class from the SILVA database,
@@ -124,8 +140,8 @@ write.csv(top_10_class.df,
 # rep_set_aligned/97/97_alignment.fna
 
 # Ladderize tree
-mytree <- read_tree("Additional_results/SILVA_extract/SILVA_genera_1_representatives_cleaned_fasttree.newick")
-write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_genera_1_representatives_cleaned_fasttree_ladderized.newick")
+mytree <- read_tree("Additional_results/SILVA_extract/SILVA_genus_1_representatives_cleaned_fasttree.newick")
+write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_genus_1_representatives_cleaned_fasttree_ladderized.newick")
 
 mytree <- read_tree("Additional_results/SILVA_extract/SILVA_class_1_representatives_cleaned_fasttree.newick")
 write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_class_1_representatives_cleaned_fasttree_ladderized.newick")
@@ -134,9 +150,11 @@ write.tree(ladderize(mytree),file = "Additional_results/SILVA_extract/SILVA_clas
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 # Now we load can load the summary table generated from this and use to 
 # generate the iTOL table for tree visualisation
+# NOTE (10/05/20) - The selected sequences are based on the top genera # per accession, HOWEVER, the annotations
+# used in ITOL are based on ALL accessions
 
 # GENUS
-top_genus_silva_summary.df <- read.table("Additional_results/SILVA_extract/genera_1_rep_summary.tsv", sep = "\t", header = T)
+top_genus_silva_summary.df <- read.table("Additional_results/SILVA_extract/genus_1_rep_summary.tsv", sep = "\t", header = T)
 
 # We need to determine the presence absence of each genera in each Commodity, Sample treatment and Sample type
 head(top_genus_silva_summary.df)
@@ -182,10 +200,12 @@ itol_data.df <- left_join(left_join(genus_commodity.df, genus_sample_type.df, by
 itol_data.df <- left_join(top_genus_silva_summary.df, itol_data.df, by = "taxonomy_genus")
 
 # Add taxonomy data (partially done in bash)
-itol_data.df$taxonomy_phylum <- with(itol_data.df, paste0(Domain, Phylum))
-itol_data.df$taxonomy_class <- with(itol_data.df, paste0(Domain, Phylum, Class))
-itol_data.df$taxonomy_order <- with(itol_data.df, paste0(Domain, Phylum, Class, Order))
-itol_data.df$taxonomy_family <- with(itol_data.df, paste0(Domain, Phylum, Class, Order, Family))
+
+itol_data.df$taxonomy_phylum <- with(itol_data.df, paste(Domain, Phylum, sep = ";"))
+itol_data.df$taxonomy_class <- with(itol_data.df, paste(Domain, Phylum, Class, sep = ";"))
+itol_data.df$taxonomy_order <- with(itol_data.df, paste(Domain, Phylum, Class, Order, sep = ";"))
+itol_data.df$taxonomy_family <- with(itol_data.df, paste(Domain, Phylum, Class, Order, Family, sep = ";"))
+itol_data.df$class_genus <- with(itol_data.df, paste(Class, Genus, sep = ";"))
 
 # Assign colours for each taxa level
 my_colour_palette_15 <- c("#77b642","#7166d9","#cfa240","#b351bb","#4fac7f","#d44891","#79843a","#c68ad4","#d15a2c","#5ba7d9","#ce4355","#6570ba","#b67249","#9b4a6f","#df8398")
